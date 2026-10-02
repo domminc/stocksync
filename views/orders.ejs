@@ -20,10 +20,11 @@
 
 <% if (!result.rows.length) { %><p class="muted">조건에 맞는 주문이 없습니다.</p><% } else { %>
 <div class="table-wrap"><table class="stack">
-  <tr class="thead"><th>주문번호</th><th>쇼핑몰</th><th>상품</th><th class="num">수량</th><th class="num">재고</th><th>상태</th><th></th></tr>
+  <tr class="thead"><% if (can('order.ship')) { %><th class="selcol"></th><% } %><th>주문번호</th><th>쇼핑몰</th><th>상품</th><th class="num">수량</th><th class="num">재고</th><th>상태</th><th></th></tr>
   <% result.rows.forEach(function (o) {
        var short = o.status === 'pending' && o.product_id && o.qty > o.stock_qty; %>
   <tr<%= short ? ' class=risk' : '' %>>
+    <% if (can('order.ship')) { %><td class="sel"><% if (o.status === 'pending' && o.product_id && !short) { %><input type="checkbox" name="ids" value="<%= o.id %>" form="bulk" aria-label="주문 <%= o.order_no %> 선택"><% } %></td><% } %>
     <td class="title"><%= o.order_no %><div class="small muted"><%= o.ordered_at %></div></td>
     <td data-label="쇼핑몰"><%= o.channel || '-' %></td>
     <td data-label="상품">
@@ -59,6 +60,20 @@
   </tr>
   <% }) %>
 </table></div>
+<% } %>
+<% if (can('order.ship') && (status === '' || status === 'pending') && bulkAll > 0) { %>
+<div class="sticky-confirm bulkbar">
+  <form id="bulk" method="post" action="/orders/ship-bulk" class="bulk-sel" data-confirm="" data-confirm-tpl="선택한 {n}건을 출고확정합니다. 재고가 차감됩니다. 계속할까요?">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="return_to" value="<%= returnTo %>"><input type="hidden" name="mode" value="selected">
+    <label class="checkline"><input type="checkbox" data-check-all> 이 쪽 전체</label>
+    <span><span class="count" data-sel-count>0</span>건 선택</span>
+    <button class="pri" type="submit" data-needs-selection disabled>선택 출고확정</button>
+  </form>
+  <form method="post" action="/orders/ship-bulk" data-confirm="<%= q ? '검색 조건에 맞는 ' : '' %>출고 가능한 미출고 주문 <%= n(Math.min(bulkAll, BULK_MAX)) %>건을 모두 출고확정합니다. 재고가 부족한 주문은 건너뜁니다. 계속할까요?">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="return_to" value="<%= returnTo %>"><input type="hidden" name="mode" value="all"><input type="hidden" name="q" value="<%= q %>">
+    <button type="submit"><%= q ? '검색 결과' : '미출고' %> 전체 <%= bulkAll > BULK_MAX ? n(BULK_MAX) + '건+' : n(bulkAll) + '건' %> 한 번에 출고확정</button>
+  </form>
+</div>
 <% } %>
 <%- include('partials/pager') %>
 <%- include('partials/foot') %>

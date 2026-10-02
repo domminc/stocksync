@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko"<% if (theme) { %> data-theme="<%= theme %>"<% } %>>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -27,6 +27,7 @@
     </nav>
     <div class="side-user">
       <div class="who"><span class="avatar" aria-hidden="true"><%= user.displayName.slice(0, 1) %></span><span><strong><%= user.displayName %></strong><span class="role"><%= ROLES[user.role] %></span></span></div>
+      <div class="theme-row"><span class="small muted">화면 테마</span><%- include('theme') %></div>
       <a href="/password"><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg>비밀번호 변경</a>
       <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="ghost" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-logout"/></svg>로그아웃</button></form>
     </div>
@@ -40,6 +41,7 @@
       <details class="usermenu userinfo">
         <summary><span class="avatar" aria-hidden="true"><%= user.displayName.slice(0, 1) %></span><span class="uname"><strong><%= user.displayName %></strong><span class="role"><%= ROLES[user.role] %></span></span><svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg></summary>
         <div class="menu-pop">
+          <div class="theme-row"><span class="small muted">화면 테마</span><%- include('theme') %></div>
           <a href="/password"><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg>비밀번호 변경</a>
           <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="ghost" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-logout"/></svg>로그아웃</button></form>
         </div>

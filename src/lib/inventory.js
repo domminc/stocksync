@@ -100,6 +100,23 @@ export function resolveHold(db, { productId, qty, action, reason = '', userId })
 }
 
 /** 온라인 주문 한 줄을 출고확정한다. 이때 처음으로 재고가 차감된다. */
+/** 여러 주문 줄을 오래된 순서로 출고확정한다. 재고 부족 등으로 안 되는 줄은 건너뛰고 사유를 모아 돌려준다(전체를 되돌리지 않는다). */
+export function shipMany(db, lineIds, userId) {
+  const done = [];
+  const failed = [];
+  const orderNo = db.prepare('SELECT order_no FROM order_lines WHERE id = ?');
+  for (const id of lineIds) {
+    try {
+      const r = shipOrderLine(db, id, userId);
+      done.push({ id, orderNo: r.line.order_no });
+    } catch (e) {
+      if (!(e instanceof StockError)) throw e;
+      failed.push({ id, orderNo: orderNo.get(id)?.order_no ?? String(id), message: e.message });
+    }
+  }
+  return { done, failed };
+}
+
 export function shipOrderLine(db, lineId, userId) {
   return tx(db, () => {
     const line = db.prepare('SELECT * FROM order_lines WHERE id = ?').get(lineId);

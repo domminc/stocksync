@@ -47,6 +47,49 @@
   }
   if (mq.addEventListener) mq.addEventListener('change', setDevice);
 
+
+  // 화면 테마: 라이트 / 다크 / 시스템. 쿠키에 저장해 서버가 다음 화면부터 바로 적용한다(깜빡임 없음).
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('[data-theme-set]');
+    if (!b) return;
+    var v = b.getAttribute('data-theme-set');
+    var root = document.documentElement;
+    if (v === 'system') {
+      document.cookie = 'theme=; Path=/; Max-Age=0; SameSite=Lax';
+      root.removeAttribute('data-theme');
+    } else {
+      document.cookie = 'theme=' + v + '; Path=/; Max-Age=31536000; SameSite=Lax';
+      root.setAttribute('data-theme', v);
+    }
+    document.querySelectorAll('[data-theme-set]').forEach(function (x) {
+      x.setAttribute('aria-pressed', x.getAttribute('data-theme-set') === v ? 'true' : 'false');
+    });
+  });
+
+  // 주문 일괄 출고확정: 체크박스 선택 개수에 맞춰 버튼과 확인 문구를 갱신한다.
+  var bulk = document.getElementById('bulk');
+  if (bulk) {
+    var boxes = function () { return Array.prototype.slice.call(document.querySelectorAll('input[name=ids][form=bulk]:not(:disabled)')); };
+    var countEl = bulk.querySelector('[data-sel-count]');
+    var go = bulk.querySelector('[data-needs-selection]');
+    var tpl = bulk.getAttribute('data-confirm-tpl') || '';
+    var all = document.querySelector('[data-check-all]');
+    var refresh = function () {
+      var list = boxes();
+      var n = list.filter(function (c) { return c.checked; }).length;
+      if (countEl) countEl.textContent = String(n);
+      if (go) go.disabled = n === 0;
+      bulk.setAttribute('data-confirm', tpl.replace('{n}', String(n)));
+      if (all) { all.checked = n > 0 && n === list.length; all.indeterminate = n > 0 && n < list.length; }
+    };
+    document.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t === all) { boxes().forEach(function (c) { c.checked = all.checked; }); refresh(); }
+      else if (t && t.name === 'ids' && t.getAttribute('form') === 'bulk') refresh();
+    });
+    refresh();
+  }
+
   // 라벨 인쇄
   document.addEventListener('click', function (e) {
     var t = e.target;

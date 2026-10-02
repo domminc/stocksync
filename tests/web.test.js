@@ -413,7 +413,7 @@ test('반응형: 접이식 메뉴 구조와, 카드로 바뀌는 목록 표의 �
       const tds = [...table.matchAll(/<td\b([^>]*)>/g)].map((m) => m[1]);
       assert.ok(tds.length > 0, `${path}: 데이터 행`);
       for (const attrs of tds) {
-        assert.ok(/data-label="[^"]+"/.test(attrs) || /class="[^"]*\b(title|acts)\b/.test(attrs), `${path}: 라벨 없는 칸 <td${attrs}>`);
+        assert.ok(/data-label="[^"]+"/.test(attrs) || /class="[^"]*\b(title|acts|sel)\b/.test(attrs), `${path}: 라벨 없는 칸 <td${attrs}>`);
       }
     }
   }

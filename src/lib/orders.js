@@ -249,6 +249,20 @@ export function listOrders(db, { status = '', q = '', page = 1, pageSize = 50 } 
 }
 
 /** 포장하면서 스캔 → 해당 상품의 가장 오래된 미출고 주문 한 줄을 출고확정 대상으로 찾는다. */
+/** 출고확정할 수 있는(상품이 연결된) 미출고 주문 줄. q 는 목록의 검색어와 같은 규칙. 오래된 주문부터. */
+export function shippableLineIds(db, { q = '', limit = 2000 } = {}) {
+  const params = [];
+  let sql = "SELECT o.id FROM order_lines o WHERE o.status = 'pending' AND o.product_id IS NOT NULL";
+  const term = String(q).trim();
+  if (term) {
+    sql += " AND (o.order_no = ? OR o.raw_code = ? OR o.item_name LIKE ? ESCAPE '\\')";
+    params.push(term, normalizeBarcode(term), `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+  }
+  sql += ' ORDER BY o.id ASC LIMIT ?';
+  params.push(limit);
+  return db.prepare(sql).all(...params).map((r) => r.id);
+}
+
 export function nextPendingLineForProduct(db, productId) {
   return db.prepare("SELECT * FROM order_lines WHERE product_id = ? AND status = 'pending' ORDER BY id LIMIT 1").get(productId) ?? null;
 }

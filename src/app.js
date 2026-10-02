@@ -106,6 +106,7 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
 
   app.use((req, res, next) => {
     const cookies = parseCookies(req.headers.cookie);
+    req.cookies = cookies;
     req.sid = cookies.sid || '';
     const s = loadSession(db, req.sid);
     req.user = s?.user ?? null;
@@ -117,6 +118,7 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
       can: (perm) => Boolean(req.user && can(req.user.role, perm)),
       n: (v) => Number(v ?? 0).toLocaleString('ko-KR'),
       assetV,
+      theme: ['light', 'dark'].includes(req.cookies?.theme) ? req.cookies.theme : '',
       msg, msgType: req.query.t === 'err' ? 'err' : 'ok',
       title: '', currentPath: req.path,
       tabs: TABS.filter((t) => req.user && can(req.user.role, t.perm)).map((t) => ({

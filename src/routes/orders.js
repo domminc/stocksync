@@ -1,13 +1,14 @@
 import express from 'express';
 import { decodeText } from '../lib/csv.js';
 import {
-  importOrders, listOrders, listUnmatched, linkMatchKeyToProduct, ignoreMatchKey, rematchOrders, nextPendingLineForProduct, ORDER_CSV_TEMPLATE,
+  importOrders, listOrders, shippableLineIds, listUnmatched, linkMatchKeyToProduct, ignoreMatchKey, rematchOrders, nextPendingLineForProduct, ORDER_CSV_TEMPLATE,
 } from '../lib/orders.js';
 import { findProductByCode, ValidationError } from '../lib/products.js';
-import { shipOrderLine, cancelPendingLine, returnOrderLine, StockError } from '../lib/inventory.js';
+import { shipOrderLine, shipMany, cancelPendingLine, returnOrderLine, StockError } from '../lib/inventory.js';
 import { normalizeBarcode } from '../lib/ean13.js';
 import { audit } from '../lib/auth.js';
 import { pageSizeFor } from '../lib/pagesize.js';
+import { can } from '../lib/permissions.js';
 
 const int = (v, d) => {
   const n = Number.parseInt(String(v ?? ''), 10);
@@ -22,13 +23,16 @@ const FILTERS = {
   needs_return: '반품 필요', unmatched: '상품 미매칭',
 };
 
+const BULK_MAX = 2000; // 한 번에 처리하는 최대 건수 (넘으면 한 번 더 누르면 된다)
+
 export function registerOrders(app, { db, guard }) {
   app.get('/orders', guard('view'), (req, res) => {
     const status = Object.hasOwn(FILTERS, req.query.status) ? String(req.query.status) : '';
     const q = String(req.query.q ?? '').slice(0, 100);
     const result = listOrders(db, { status, q, page: int(req.query.page, 1), pageSize: pageSizeFor(req) });
     const pageUrl = (n) => `/orders?${new URLSearchParams({ status, q, page: String(n) })}`;
-    res.render('orders', { title: '주문 목록', status, q, FILTERS, ORDER_STATUS_LABEL, result, pageUrl, returnTo: pageUrl(result.page) });
+    const bulkAll = (status === '' || status === 'pending') && req.user && can(req.user.role, 'order.ship') ? shippableLineIds(db, { q, limit: BULK_MAX + 1 }).length : 0;
+    res.render('orders', { title: '주문 목록', status, q, FILTERS, ORDER_STATUS_LABEL, result, pageUrl, returnTo: pageUrl(result.page), bulkAll, BULK_MAX });
   });
 
   app.get('/orders/import', guard('order.import'), (req, res) => {
@@ -121,6 +125,27 @@ export function registerOrders(app, { db, guard }) {
     const r = String(req.body.return_to ?? '');
     return r.startsWith('/orders') && !r.startsWith('//') ? r : '/orders';
   };
+
+  // 일괄 출고확정: 체크한 주문(mode=selected) 또는 현재 검색 조건의 미출고 주문 전체(mode=all)
+  app.post('/orders/ship-bulk', guard('order.ship'), (req, res) => {
+    let ids;
+    if (req.body.mode === 'all') {
+      ids = shippableLineIds(db, { q: String(req.body.q ?? '').slice(0, 100), limit: BULK_MAX });
+    } else {
+      const raw = [].concat(req.body.ids ?? []);
+      ids = [...new Set(raw.map((v) => int(v, 0)).filter((n) => n > 0))].sort((a, b) => a - b).slice(0, BULK_MAX);
+    }
+    if (!ids.length) return res.redirectWith(back(req), '출고확정할 주문이 없습니다. 체크박스로 주문을 선택하세요.', 'err');
+    const { done, failed } = shipMany(db, ids, req.user.id);
+    audit(db, req.user.id, 'order.ship_bulk', `mode=${req.body.mode === 'all' ? 'all' : 'selected'} shipped=${done.length} skipped=${failed.length}`);
+    let msg = `${done.length}건 출고확정했습니다.`;
+    if (failed.length) {
+      const sample = failed.slice(0, 3).map((f) => f.orderNo).join(', ');
+      msg += ` ${failed.length}건은 건너뛰었습니다(재고 부족·이미 처리됨 등): ${sample}${failed.length > 3 ? ' 외' : ''}`;
+    }
+    if (done.length === ids.length && ids.length === BULK_MAX) msg += ` 한 번에 ${BULK_MAX}건까지 처리합니다. 남은 주문은 한 번 더 실행하세요.`;
+    res.redirectWith(back(req), msg, done.length ? 'ok' : 'err');
+  });
 
   app.post('/orders/:id/ship', guard('order.ship'), (req, res) => {
     try {
