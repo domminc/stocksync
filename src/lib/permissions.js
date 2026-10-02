@@ -20,6 +20,7 @@ const PERMISSIONS = {
   'order.ship': ['admin', 'manager', 'online'],
   'order.return': ['admin', 'manager', 'online'],
   'order.match': ['admin', 'manager', 'online'],
+  'label.print': ['admin', 'manager', 'staff'],
   'user.manage': ['admin'],
 };
 

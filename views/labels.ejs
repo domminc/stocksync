@@ -1,0 +1,57 @@
+<%- include('partials/head') %>
+<div class="noprint">
+  <h1>라벨 인쇄</h1>
+  <p class="muted">상품에 붙일 EAN-13 바코드 라벨을 만듭니다. 화면 아래의 “인쇄”를 누르고, 인쇄 창에서 <strong>용지 크기를 라벨 크기에 맞추고 여백을 없음</strong>으로 설정하세요.</p>
+
+  <form method="get" action="/labels" class="card">
+    <div class="row">
+      <div class="f2"><label for="q">상품 검색 (바코드 · 상품코드 · 상품명)</label><input id="q" name="q" type="search" value="<%= q %>"></div>
+      <div>
+        <label for="filter">대상</label>
+        <select id="filter" name="filter"><% Object.keys(FILTERS).forEach(function (k) { %><option value="<%= k %>"<%= k === filter ? ' selected' : '' %>><%= FILTERS[k] %></option><% }) %></select>
+      </div>
+      <div>
+        <label for="size">라벨 크기</label>
+        <select id="size" name="size"><% Object.keys(SIZES).forEach(function (k) { %><option value="<%= k %>"<%= k === size ? ' selected' : '' %>><%= SIZES[k] %></option><% }) %></select>
+      </div>
+      <div>
+        <label for="copies">장수</label>
+        <select id="copies" name="copies">
+          <option value="fixed"<%= copiesMode === 'fixed' ? ' selected' : '' %>>상품마다 같은 장수</option>
+          <option value="stock"<%= copiesMode === 'stock' ? ' selected' : '' %>>현재 재고 수량만큼</option>
+        </select>
+      </div>
+      <div><label for="n">장수 (같은 장수일 때)</label><input id="n" name="n" type="number" min="1" max="50" value="<%= fixed %>"></div>
+      <% if (ids) { %><input type="hidden" name="ids" value="<%= ids %>"><% } %>
+      <div class="fit"><button class="pri" type="submit">미리보기</button></div>
+    </div>
+  </form>
+
+  <% if (!hasSelection) { %>
+    <p class="muted">검색어를 입력하거나 “대상”을 고른 뒤 미리보기를 누르세요. <a href="/labels?filter=unprinted">라벨 미출력 상품 전체</a>를 바로 볼 수도 있습니다.</p>
+  <% } else if (!productCount) { %>
+    <p class="muted">조건에 맞는 상품이 없습니다.</p>
+  <% } else { %>
+    <div class="actions mt8">
+      <button class="pri" type="button" data-print>인쇄 (<%= n(total) %>장 · 상품 <%= n(productCount) %>개)</button>
+      <form method="post" action="/labels/printed" class="inline" data-confirm="이 상품들을 라벨 출력 완료로 표시합니다.">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="hidden" name="ids" value="<%= items.map(function (i) { return i.p.id; }).join(',') %>">
+        <button type="submit">인쇄했으면 “출력 완료”로 표시</button>
+      </form>
+    </div>
+    <% if (truncated) { %><div class="notice mt12">한 번에 최대 <%= n(3000) %>장까지만 만듭니다. 나머지는 “라벨 미출력만”으로 다시 조회하세요.</div><% } %>
+    <% if (copiesMode === 'stock' && total === 0) { %><div class="notice mt12">재고가 0인 상품은 라벨이 만들어지지 않습니다.</div><% } %>
+  <% } %>
+</div>
+
+<div class="labels size-<%= size %>">
+  <% items.forEach(function (it) { for (var k = 0; k < it.count; k++) { %>
+  <div class="label">
+    <div class="label-name"><%= it.p.name %></div>
+    <% if (it.p.option_name) { %><div class="label-opt"><%= it.p.option_name %></div><% } %>
+    <% if (/^\d{13}$/.test(it.p.barcode)) { %><%- ean13Svg(it.p.barcode) %><% } else { %><div class="label-code"><%= it.p.barcode %></div><% } %>
+  </div>
+  <% } }) %>
+</div>
+<%- include('partials/foot') %>

@@ -31,6 +31,12 @@
     } catch (e) { /* 소리가 막혀 있어도 동작에는 영향 없음 */ }
   }
 
+  // 라벨 인쇄
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (t && t.hasAttribute && t.hasAttribute('data-print')) window.print();
+  });
+
   // 위험한 버튼 확인창
   document.addEventListener('submit', function (e) {
     var msg = e.target.getAttribute && e.target.getAttribute('data-confirm');
@@ -41,13 +47,13 @@
   var LABELS = {
     products: [
       ['total', '읽은 행'], ['created', '새로 등록'], ['updated', '정보 갱신'], ['skipped', '건너뜀(오류)'],
-      ['initialStock', '초기 재고 반영'], ['checkDigitWarnings', 'EAN-13 체크디지트 경고'],
+      ['initialStock', '초기 재고 반영'], ['barcodesIssued', '바코드 자동 발급'], ['checkDigitWarnings', 'EAN-13 체크디지트 경고'],
     ],
     orders: [
       ['total', '읽은 행'], ['inserted', '새로 등록'], ['pendingNew', '└ 미출고 주문'], ['closedNew', '└ 외부 출고됨'],
       ['canceledNew', '└ 취소'], ['duplicates', '이미 있는 주문(중복)'], ['canceledUpdated', '취소로 갱신'],
       ['closedUpdated', '외부 출고로 갱신'], ['needsReturn', '출고 후 취소·반품 → 반품 필요'],
-      ['unmatched', '상품 미매칭'], ['rematched', '재매칭됨'],
+      ['matchedByName', '상품명으로 자동 매칭'], ['unmatched', '상품 미매칭 → 매칭 대기'], ['addonsIgnored', '추가상품(자수·각인 등) 자동 제외'], ['rematched', '재매칭됨'],
     ],
   };
 
@@ -108,11 +114,12 @@
         var dd = document.createElement('dd'); dd.textContent = Number(rep[pair[0]]).toLocaleString('ko-KR');
         dl.appendChild(dt); dl.appendChild(dd);
       });
-      if (rep.usedCodeColumn) {
-        var dt2 = document.createElement('dt'); dt2.textContent = '상품코드로 사용한 열';
-        var dd2 = document.createElement('dd'); dd2.textContent = rep.usedCodeColumn;
+      [['usedCodeColumn', '상품코드로 사용한 열'], ['usedNameColumn', '상품명으로 사용한 열']].forEach(function (pair) {
+        if (!rep[pair[0]]) return;
+        var dt2 = document.createElement('dt'); dt2.textContent = pair[1];
+        var dd2 = document.createElement('dd'); dd2.textContent = rep[pair[0]];
         dl.appendChild(dt2); dl.appendChild(dd2);
-      }
+      });
       box.appendChild(dl);
       if (rep.errors && rep.errors.length) {
         var h = document.createElement('h2'); h.textContent = '확인이 필요한 행 (' + rep.errors.length + (rep.errorsTruncated ? '+' : '') + ')';

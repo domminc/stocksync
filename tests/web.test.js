@@ -4,6 +4,7 @@ import { memDb, addUser, addProduct, ean, PASSWORD } from './helpers.js';
 import { createApp } from '../src/app.js';
 import { applyStock } from '../src/lib/inventory.js';
 import { importOrders } from '../src/lib/orders.js';
+import { makeNameKey } from '../src/lib/namekey.js';
 
 let db, server, base;
 
@@ -141,11 +142,11 @@ test('로그아웃하면 이전 세션 쿠키는 쓸 수 없다', async () => {
 
 test('역할별 접근 권한 (화면 접근)', async () => {
   const matrix = {
-    admin: { '/': 200, '/users': 200, '/adjust': 200, '/scan/in': 200, '/orders/import': 200, '/products/import': 200, '/orders/ship': 200 },
+    admin: { '/': 200, '/users': 200, '/adjust': 200, '/scan/in': 200, '/orders/import': 200, '/products/import': 200, '/orders/ship': 200, '/labels': 200 },
     manager: { '/': 200, '/users': 403, '/adjust': 200, '/scan/out': 200, '/orders/import': 200, '/products/import': 200 },
-    staff: { '/': 200, '/products': 200, '/scan/in': 200, '/scan/out': 200, '/adjust': 403, '/products/import': 403, '/orders/import': 403, '/orders/ship': 403, '/users': 403, '/products/new': 403 },
-    online: { '/': 200, '/orders': 200, '/orders/import': 200, '/orders/ship': 200, '/orders/unmatched': 200, '/scan/in': 403, '/adjust': 403, '/products/import': 403, '/users': 403 },
-    viewer: { '/': 200, '/products': 200, '/ledger': 200, '/orders': 200, '/scan/in': 403, '/scan/out': 403, '/adjust': 403, '/orders/ship': 403, '/orders/import': 403, '/users': 403 },
+    staff: { '/': 200, '/labels': 200, '/products': 200, '/scan/in': 200, '/scan/out': 200, '/adjust': 403, '/products/import': 403, '/orders/import': 403, '/orders/ship': 403, '/users': 403, '/products/new': 403 },
+    online: { '/': 200, '/labels': 403, '/orders': 200, '/orders/import': 200, '/orders/ship': 200, '/orders/unmatched': 200, '/scan/in': 403, '/adjust': 403, '/products/import': 403, '/users': 403 },
+    viewer: { '/': 200, '/labels': 403, '/products': 200, '/ledger': 200, '/orders': 200, '/scan/in': 403, '/scan/out': 403, '/adjust': 403, '/orders/ship': 403, '/orders/import': 403, '/users': 403 },
   };
   for (const [role, paths] of Object.entries(matrix)) {
     const c = await as(role);
@@ -228,9 +229,9 @@ test('관리자·매장 관리자는 CSV로 상품을 가져온다 (원본 한�
   assert.equal(j.ok, true);
   assert.equal(j.report.created, 2);
   assert.equal(qty(db.prepare('SELECT id FROM products WHERE barcode = ?').get(ean(800)).id), 7);
-  const bad = await c.upload('/products/import', '상품명\n이름만');
+  const bad = await c.upload('/products/import', '바코드\n8800000000015');
   assert.equal(bad.status, 400);
-  assert.match((await bad.json()).error, /바코드/);
+  assert.match((await bad.json()).error, /상품명/);
   assert.equal((await c.upload('/products/import', '')).status, 400);
 });
 
@@ -257,7 +258,7 @@ test('상품 연결 후 매칭 대기가 풀린다', async () => {
   const id = addProduct(db, 820);
   const c = await as('online');
   await c.upload('/orders/import', '주문번호,상품코드,상품명,수량\nL1,PA-LINK-1,연결할 상품,1');
-  const r = await c.post('/orders/unmatched/link', { raw_code: 'PA-LINK-1', barcode: ean(820) });
+  const r = await c.post('/orders/unmatched/link', { key: 'PA-LINK-1', barcode: ean(820) });
   assert.match(flashOf(r), /연결했습니다/);
   assert.equal(db.prepare("SELECT product_id FROM order_lines WHERE order_no = 'L1'").get().product_id, id);
 });
@@ -319,7 +320,7 @@ test('CSP 호환: 화면에 인라인 style·script·이벤트 속성이 없다'
   const id = addProduct(db, 850);
   importOrders(db, `주문번호,바코드,수량\nCSP1,${ean(850)},1\nCSP2,NOPE-1,1`);
   const paths = ['/', '/products', `/products/${id}`, `/products/${id}/edit`, '/products/new', '/products/import', '/ledger', '/adjust',
-    `/adjust?code=${ean(850)}`, '/scan/in', '/scan/out', '/orders', '/orders/import', '/orders/unmatched', '/orders/ship', '/users', '/password'];
+    `/adjust?code=${ean(850)}`, `/labels?ids=${id}`, '/labels?filter=unprinted', '/labels?filter=unprinted&size=a4&copies=stock', '/scan/in', '/scan/out', '/orders', '/orders/import', '/orders/unmatched', '/orders/ship', '/users', '/password'];
   for (const path of paths) {
     const res = await c.get(path);
     assert.equal(res.status, 200, path);
@@ -330,3 +331,62 @@ test('CSP 호환: 화면에 인라인 style·script·이벤트 속성이 없다'
   }
   assert.ok(!/\sstyle\s*=/.test(await (await new Client().get('/login')).text()), '/login');
 });
+
+test('상품 등록 화면: 바코드를 비우면 자체 바코드가 발급되고 라벨을 인쇄할 수 있다', async () => {
+  const c = await as('manager');
+  const r = await c.post('/products', { barcode: '', name: '자동 발급 테스트 글러브', option_name: '빨강/L', safety_stock: '0', tracked: '1' });
+  assert.equal(r.status, 302);
+  const id = Number(/\/products\/(\d+)/.exec(r.headers.get('location'))[1]);
+  const p = db.prepare('SELECT barcode, barcode_source FROM products WHERE id = ?').get(id);
+  assert.match(p.barcode, /^20\d{11}$/);
+  assert.equal(p.barcode_source, 'issued');
+  const page = await (await c.get(`/labels?ids=${id}&n=3`)).text();
+  assert.equal((page.match(/class="label"/g) || []).length, 3, '3장');
+  assert.equal((page.match(/<svg class="barcode"/g) || []).length, 3);
+  assert.ok(page.includes(`aria-label="바코드 ${p.barcode}"`));
+  assert.ok(page.includes('자동 발급 테스트 글러브'));
+  // 출력 완료 표시
+  assert.equal(db.prepare('SELECT label_printed_at FROM products WHERE id = ?').get(id).label_printed_at, null);
+  const done = await c.post('/labels/printed', { ids: String(id) });
+  assert.match(flashOf(done), /출력 완료/);
+  assert.ok(db.prepare('SELECT label_printed_at FROM products WHERE id = ?').get(id).label_printed_at);
+});
+
+test('라벨: 재고 수량만큼, 한 번에 최대 3000장, 직원도 인쇄 가능 / 조회 전용은 불가', async () => {
+  const id = addProduct(db, 860);
+  applyStock(db, { productId: id, qtyDelta: 4, eventType: 'IN' });
+  const staff = await as('staff');
+  const page = await (await staff.get(`/labels?ids=${id}&copies=stock`)).text();
+  assert.equal((page.match(/class="label"/g) || []).length, 4);
+  assert.equal((await (await as('viewer')).post('/labels/printed', { ids: String(id) })).status, 403);
+  assert.equal((await staff.get('/labels?ids=abc')).status, 200, '잘못된 ids 는 무시');
+});
+
+test('매칭 대기 화면: 후보 제안 → 버튼으로 연결, 무시 처리', async () => {
+  const c = await as('online');
+  const target = createProductForWeb('화면테스트 글러브 WXY777', '블랙');
+  // 표기가 달라 이름 키로는 못 찾는 주문(→ 후보 제안 대상)과, 재고와 무관한 서비스 주문
+  importOrders(db, '주문번호,상품명,수량\nU4,화면테스트 글러브 WXY777 블랙 한정판 / 색상: 블랙,2\nU3,재고무관 서비스 / 선택: 아니오,1');
+  assert.equal(db.prepare("SELECT product_id FROM order_lines WHERE order_no = 'U4'").get().product_id, null);
+  const key4 = db.prepare("SELECT match_key FROM order_lines WHERE order_no = 'U4'").get().match_key;
+
+  const html = await (await c.get('/orders/unmatched')).text();
+  assert.ok(html.includes('이 상품으로 연결'), '후보 버튼');
+  assert.ok(html.includes('WXY777'));
+  let r = await c.post('/orders/unmatched/link', { key: key4, product_id: String(target) });
+  assert.match(flashOf(r), /연결했습니다/);
+  assert.equal(db.prepare("SELECT product_id FROM order_lines WHERE order_no = 'U4'").get().product_id, target);
+
+  const keyU3 = db.prepare("SELECT match_key FROM order_lines WHERE order_no = 'U3'").get().match_key;
+  assert.equal((await (await as('staff')).post('/orders/unmatched/ignore', { key: keyU3 })).status, 403);
+  r = await c.post('/orders/unmatched/ignore', { key: keyU3 });
+  assert.match(flashOf(r), /재고와 무관/);
+  assert.equal(db.prepare("SELECT status FROM order_lines WHERE order_no = 'U3'").get().status, 'closed');
+});
+
+function createProductForWeb(name, option) {
+  const r = db.prepare("INSERT INTO products (sku_code, barcode, name, option_name, name_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, '', '')")
+    .run(`W-${name}`, ean(870 + name.length), name, option, makeNameKey(name, option));
+  db.prepare("INSERT INTO inventory (product_id, qty, hold, updated_at) VALUES (?, 5, 0, '')").run(Number(r.lastInsertRowid));
+  return Number(r.lastInsertRowid);
+}

@@ -1,32 +1,51 @@
 <%- include('partials/head') %>
 <div class="row ac">
   <div><h1>매칭 대기</h1>
-    <p class="muted">주문 파일의 상품코드와 일치하는 상품을 찾지 못한 미출고 주문입니다. 우리 상품(바코드)에 한 번 연결하면 이후 가져오기부터 자동으로 연결됩니다.</p></div>
+    <p class="muted">주문의 상품을 상품 목록에서 찾지 못한 미출고 주문입니다. 맞는 상품을 한 번 고르면 같은 상품명의 주문은 모두 연결되고, 다음 가져오기부터 자동으로 연결됩니다.</p></div>
   <div class="fit">
     <form method="post" action="/orders/unmatched/rematch" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>">
       <button type="submit">상품 등록 후 다시 매칭</button></form>
   </div>
 </div>
 <% if (!rows.length) { %><p class="muted">매칭 대기 중인 주문이 없습니다.</p><% } else { %>
-<div class="table-wrap"><table>
-  <tr><th>주문 파일의 코드 / 상품명</th><th>쇼핑몰</th><th class="num">주문</th><th class="num">수량</th><th>연결할 상품 바코드</th></tr>
-  <% rows.forEach(function (r) { %>
-  <tr>
-    <td><strong><%= r.raw_code || '(코드 없음)' %></strong><div class="small muted"><%= r.item_name %></div></td>
-    <td><%= r.channel || '-' %></td>
-    <td class="num"><%= n(r.lines) %></td>
-    <td class="num"><%= n(r.qty) %></td>
-    <td>
-      <% if (r.raw_code) { %>
-      <form method="post" action="/orders/unmatched/link" class="row nowrap">
-        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="raw_code" value="<%= r.raw_code %>">
-        <input class="minw160" type="text" name="barcode" placeholder="바코드 스캔 또는 입력" required inputmode="numeric" autocomplete="off">
-        <button class="small pri fit" type="submit">연결</button>
+<% rows.forEach(function (r) { %>
+<div class="card">
+  <div class="row ac">
+    <div class="f3">
+      <strong><%= r.item_name || r.raw_code %></strong>
+      <div class="small muted"><%= r.channel || '-' %> · 주문 <%= n(r.lines) %>건 · 수량 <%= n(r.qty) %><% if (r.raw_code) { %> · 코드 <%= r.raw_code %><% } %></div>
+    </div>
+    <div class="fit">
+      <form method="post" action="/orders/unmatched/ignore" class="inline" data-confirm="재고와 무관한 항목(자수 신청 등)으로 처리합니다. 같은 항목은 앞으로 자동 제외됩니다.">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.match_key %>">
+        <button class="small" type="submit">재고와 무관 (무시)</button>
       </form>
-      <% } else { %><span class="small muted">코드가 없는 주문은 주문 파일에 바코드/상품코드 열을 포함해 다시 가져오세요.</span><% } %>
-    </td>
-  </tr>
-  <% }) %>
-</table></div>
+    </div>
+  </div>
+
+  <% if (r.suggestions.length) { %>
+  <div class="small muted mt8">후보 상품 — 맞는 것을 눌러 연결하세요</div>
+  <div class="table-wrap mt8"><table class="compact">
+    <% r.suggestions.forEach(function (s) { %>
+    <tr>
+      <td><%= s.name %><% if (s.option_name) { %> <span class="muted small">/ <%= s.option_name %></span><% } %><div class="small muted"><%= s.barcode %></div></td>
+      <td>
+        <form method="post" action="/orders/unmatched/link" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.match_key %>"><input type="hidden" name="product_id" value="<%= s.id %>">
+          <button class="small pri" type="submit">이 상품으로 연결</button>
+        </form>
+      </td>
+    </tr>
+    <% }) %>
+  </table></div>
+  <% } %>
+
+  <form method="post" action="/orders/unmatched/link" class="row nowrap mt12">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.match_key %>">
+    <input class="minw160" type="text" name="barcode" placeholder="후보에 없으면 바코드를 스캔하거나 입력" required inputmode="numeric" autocomplete="off">
+    <button class="small fit" type="submit">바코드로 연결</button>
+  </form>
+</div>
+<% }) %>
 <% } %>
 <%- include('partials/foot') %>

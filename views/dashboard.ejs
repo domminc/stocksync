@@ -16,6 +16,7 @@
   <a class="stat <%= stats.outCount ? 'bad' : '' %>" href="/products?filter=out"><div class="label">품절 상품</div><div class="value"><%= n(stats.outCount) %></div><div class="sub">재고관리 대상 중 0개</div></a>
   <a class="stat <%= stats.lowCount ? 'warn' : '' %>" href="/products?filter=low"><div class="label">재고 부족</div><div class="value"><%= n(stats.lowCount) %></div><div class="sub">안전재고 이하</div></a>
   <% if (stats.unmatchedCount) { %><a class="stat warn" href="/orders?status=unmatched"><div class="label">상품 미매칭 주문</div><div class="value"><%= n(stats.unmatchedCount) %></div><div class="sub">출고하려면 상품 연결 필요</div></a><% } %>
+  <% if (stats.unprintedCount && can('label.print')) { %><a class="stat" href="/labels?filter=unprinted"><div class="label">라벨 미출력 상품</div><div class="value"><%= n(stats.unprintedCount) %></div><div class="sub">바코드 라벨을 아직 인쇄하지 않음</div></a><% } %>
   <% if (stats.needsReturnCount) { %><a class="stat bad" href="/orders?status=needs_return"><div class="label">반품 처리 필요</div><div class="value"><%= n(stats.needsReturnCount) %></div><div class="sub">출고 후 취소·반품된 주문</div></a><% } %>
 </div>
 

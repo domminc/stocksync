@@ -172,3 +172,31 @@ button, .btn { white-space: nowrap; }
   .sticky-confirm { position: static; }
   table.compact td:last-child { padding-left: 0; }
 }
+
+/* 라벨 인쇄 */
+.labels { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.label {
+  background: #fff; border: 1px dashed #b9bfce; padding: 1.5mm; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 0.6mm;
+  break-inside: avoid; page-break-inside: avoid;
+}
+.size-50x30 .label { width: 50mm; height: 30mm; }
+.size-40x25 .label { width: 40mm; height: 25mm; }
+.size-a4 .label { width: 62mm; height: 32mm; }
+.label-name { font-size: 7.5pt; line-height: 1.15; font-weight: 700; max-height: 2.4em; overflow: hidden; color: #000; }
+.label-opt { font-size: 6.5pt; line-height: 1.1; max-height: 1.2em; overflow: hidden; color: #000; }
+.label .barcode { width: 100%; height: auto; max-height: 62%; flex: 0 1 auto; }
+.size-40x25 .label-name { font-size: 6.5pt; }
+.label-code { font-size: 10pt; font-weight: 700; letter-spacing: .06em; color: #000; }
+@media print {
+  .noprint, .side, .topbar, .flash { display: none !important; }
+  .shell { display: block; }
+  .main { padding: 0; max-width: none; }
+  body { background: #fff; }
+  .labels { display: block; margin: 0; }
+  .label { border: none; margin: 0; }
+  .size-50x30 .label, .size-40x25 .label { break-after: page; page-break-after: always; }
+  .labels.size-a4 { display: flex; flex-wrap: wrap; gap: 0; }
+  .size-a4 .label { border: 1px solid #ddd; }
+  @page { margin: 0; }
+}

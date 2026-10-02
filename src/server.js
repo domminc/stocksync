@@ -1,6 +1,7 @@
 import { openDb } from './db.js';
 import { createApp } from './app.js';
 import { createUser, purgeExpired, validatePassword } from './lib/auth.js';
+import { backfillNameKeys } from './lib/products.js';
 
 const env = process.env;
 const port = Number(env.PORT || 3000);
@@ -8,6 +9,9 @@ const host = env.HOST || '127.0.0.1';
 const dbPath = env.DB_PATH || 'data/stocksync.db';
 
 const db = openDb(dbPath);
+
+const filled = backfillNameKeys(db);
+if (filled) console.log(`[시작] 상품 ${filled}개의 매칭 키를 만들었습니다.`);
 
 const userCount = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
 if (userCount === 0) {

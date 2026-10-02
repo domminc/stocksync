@@ -11,7 +11,7 @@ const int = (v, d) => {
   return Number.isFinite(n) ? n : d;
 };
 
-const FILTERS = { '': '전체', out: '품절', low: '부족', hold: '보류 있음', risk: '주문 > 가용 (오버셀 위험)' };
+const FILTERS = { '': '전체', out: '품절', low: '부족', hold: '보류 있음', risk: '주문 > 가용 (오버셀 위험)', unprinted: '라벨 미출력' };
 
 const CSV_HEADER = ['바코드', '상품코드', '상품명', '옵션', '분류', '판매가', '안전재고', '재고관리', '가용재고', '보류', '미출고주문'];
 
@@ -44,7 +44,9 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
       title: '상품 가져오기', kind: 'products', url: '/products/import', templateUrl: '/products/import/template.csv',
       heading: '상품 가져오기 (CSV)',
       help: [
-        '필수 열: 바코드, 상품명. 선택 열: 상품코드, 옵션, 분류, 판매가, 안전재고, 재고관리(Y/N), 현재고.',
+        '필수 열: 상품명. 선택 열: 바코드, 상품코드, 옵션, 분류, 판매가, 안전재고, 재고관리(Y/N), 현재고.',
+        '바코드가 비어 있으면 이 시스템이 EAN-13 바코드를 자동 발급합니다 (20으로 시작하는 매장 내부용 번호). 발급한 뒤 “라벨 인쇄”로 상품에 붙이세요.',
+        '같은 상품코드(또는 코드가 없으면 같은 상품명+옵션)는 다시 올려도 새로 발급하지 않고 정보만 갱신합니다. 옵션별로 상품코드가 있으면 꼭 넣어 주세요.',
         '이미 등록된 바코드는 상품 정보만 갱신하며 재고 수량은 바꾸지 않습니다.',
         '새 상품의 현재고는 “초기 재고”로 재고 원장에 기록됩니다.',
         '엑셀에서 저장할 때는 바코드 열을 텍스트 서식으로 두고 “CSV UTF-8”로 저장하세요. (숫자 서식이면 8.8E+12 처럼 변형됩니다.)',
@@ -75,7 +77,7 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
 
   app.post('/products', guard('product.write'), (req, res) => {
     try {
-      const id = createProduct(db, formInput(req.body), { userId: req.user.id, strict: barcodeStrict });
+      const id = createProduct(db, formInput(req.body), { strict: barcodeStrict });
       audit(db, req.user.id, 'product.create', String(id));
       res.redirectWith(`/products/${id}`, '상품을 등록했습니다.');
     } catch (e) {

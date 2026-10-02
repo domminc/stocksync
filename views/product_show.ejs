@@ -8,6 +8,7 @@
   </div>
   <div class="fit actions">
     <% if (can('product.write')) { %><a class="btn" href="/products/<%= p.id %>/edit">수정</a><% } %>
+    <% if (can('label.print')) { %><a class="btn" href="/labels?ids=<%= p.id %>">라벨 인쇄</a><% } %>
     <% if (can('stock.adjust') && p.tracked) { %><a class="btn" href="/adjust?code=<%= encodeURIComponent(p.barcode) %>">재고 조정</a><% } %>
   </div>
 </div>
@@ -20,7 +21,8 @@
 
 <div class="card">
   <dl class="kv">
-    <dt>바코드</dt><dd><%= p.barcode %></dd>
+    <dt>바코드</dt><dd><%= p.barcode %> <span class="chip"><%= p.barcode_source === 'issued' ? '자체 발급' : '기존 바코드' %></span></dd>
+    <dt>라벨</dt><dd><%= p.label_printed_at ? fmtTime(p.label_printed_at) + ' 출력' : '미출력' %></dd>
     <dt>상품코드</dt><dd><%= p.sku_code %></dd>
     <dt>분류</dt><dd><%= p.category || '-' %></dd>
     <dt>판매가</dt><dd><%= p.price === null ? '-' : n(p.price) + '원' %></dd>

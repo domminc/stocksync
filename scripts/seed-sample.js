@@ -33,6 +33,10 @@ for (let i = 1; i <= 25; i++) {
   orders.push([`DEMO-ORD-${1000 + i}`, 1, i % 2 ? '스마트스토어' : '쿠팡', ean((i * 3) % count + 1), `샘플 주문 상품 ${i}`, 1 + (i % 3), '신규주문', '2026-10-02 09:00'].join(','));
 }
 orders.push('DEMO-ORD-2001,1,쿠팡,PA-UNKNOWN-1,플레이오토 코드만 있는 상품,1,신규주문,2026-10-02 09:30');
+// 코드 없이 상품명만 있는 주문: 첫 줄은 자동 매칭, 둘째 줄은 표기가 달라 매칭 대기(후보 제안), 셋째는 추가상품(자동 제외)
+orders.push('DEMO-ORD-3001,1,스마트스토어,,[오늘출발]샘플 배트 1 / 색상: 네이비 / 사이즈: M,1,신규주문,2026-10-02 10:00');
+orders.push('DEMO-ORD-3002,1,쿠팡,,샘플 야구화 2 시즌 특가 / 화이트/L,2,신규주문,2026-10-02 10:05');
+orders.push('DEMO-ORD-3003,1,스마트스토어,,┗(추가상품)레이저 각인 신청 / 각인 내용: 홍,1,신규주문,2026-10-02 10:10');
 const orep = importOrders(db, orders.join('\n'), { filename: 'demo' });
 
 const users = [['admin', '본사 관리자', 'admin'], ['manager', '매장 관리자', 'manager'], ['staff', '매장 직원', 'staff'], ['online', '온라인 운영자', 'online'], ['viewer', '조회 전용', 'viewer']];

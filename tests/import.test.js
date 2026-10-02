@@ -45,7 +45,7 @@ test('상품 가져오기: 다시 올리면 정보만 갱신하고 재고는 건
 
 test('상품 가져오기: 필수 열이 없으면 알려 준다', () => {
   const db = memDb();
-  assert.throws(() => importProducts(db, '상품명\n가나다'), (e) => e instanceof ValidationError && /바코드/.test(e.message));
+  assert.throws(() => importProducts(db, '바코드\n8800000000015'), (e) => e instanceof ValidationError && /상품명/.test(e.message));
   assert.throws(() => importProducts(db, '바코드,상품명'), /데이터 행/);
 });
 
