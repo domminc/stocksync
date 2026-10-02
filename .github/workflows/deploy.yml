@@ -35,5 +35,5 @@ jobs:
         env:
           HOSTINGER_API_KEY: ${{ secrets.HOSTINGER_API_KEY }}
           STOCKSYNC_ADMIN_PASSWORD: ${{ secrets.STOCKSYNC_ADMIN_PASSWORD }}
-          STOCKSYNC_PASSWORD_MIN_LENGTH: ${{ vars.STOCKSYNC_PASSWORD_MIN_LENGTH }}
+          STOCKSYNC_PASSWORD_MIN_LENGTH: ${{ secrets.STOCKSYNC_PASSWORD_MIN_LENGTH || vars.STOCKSYNC_PASSWORD_MIN_LENGTH }}
         run: node scripts/deploy-hostinger.mjs
