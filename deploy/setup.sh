@@ -22,6 +22,7 @@ PORT="${PORT:-3000}"
 PASSWORD_MIN_LENGTH="${PASSWORD_MIN_LENGTH:-10}"
 NODE_VERSION="${NODE_VERSION:-22.22.0}"
 WWW_REDIRECT="${WWW_REDIRECT:-0}"   # 1 이면 www.<도메인> 을 <도메인> 으로 보낸다
+CLOUDFLARE="${CLOUDFLARE:-0}"       # 1 이면 Cloudflare(주황 구름) 뒤에서 접속자의 진짜 IP 를 사용한다
 
 say() { printf '\n==> %s\n' "$*"; }
 
@@ -125,8 +126,24 @@ else
     apt-get update -y >/dev/null && apt-get install -y caddy >/dev/null
   fi
   mkdir -p /etc/caddy/conf.d
-  if ! grep -q 'conf.d' /etc/caddy/Caddyfile 2>/dev/null; then
-    printf '\nimport /etc/caddy/conf.d/*.caddy\n' >> /etc/caddy/Caddyfile
+  touch /etc/caddy/Caddyfile
+  # 전역 설정(Cloudflare 신뢰 IP)은 Caddyfile 맨 앞에 있어야 하므로 import 줄을 맨 위에 둔다
+  if ! grep -q 'import /etc/caddy/conf.d' /etc/caddy/Caddyfile; then
+    sed -i '1i import /etc/caddy/conf.d/*.caddy\n' /etc/caddy/Caddyfile
+  fi
+  if [ "$CLOUDFLARE" = "1" ]; then
+    CF_RANGES="$( { curl -fsS https://www.cloudflare.com/ips-v4; echo; curl -fsS https://www.cloudflare.com/ips-v6; } | tr '\n' ' ')"
+    [ -n "${CF_RANGES// /}" ] || { echo "Cloudflare IP 목록을 가져오지 못했습니다." >&2; exit 1; }
+    cat > /etc/caddy/conf.d/00-cloudflare.caddy <<CFG
+{
+    servers {
+        trusted_proxies static $CF_RANGES
+        client_ip_headers CF-Connecting-IP
+    }
+}
+CFG
+  else
+    rm -f /etc/caddy/conf.d/00-cloudflare.caddy
   fi
   {
     echo "$DOMAIN {"
@@ -134,7 +151,13 @@ else
     echo "    request_body {"
     echo "        max_size 100MB"
     echo "    }"
-    echo "    reverse_proxy 127.0.0.1:$PORT"
+    if [ "$CLOUDFLARE" = "1" ]; then
+      echo "    reverse_proxy 127.0.0.1:$PORT {"
+      echo "        header_up X-Forwarded-For {client_ip}"
+      echo "    }"
+    else
+      echo "    reverse_proxy 127.0.0.1:$PORT"
+    fi
     echo "}"
     if [ "$WWW_REDIRECT" = "1" ]; then
       echo "www.$DOMAIN {"

@@ -18,6 +18,17 @@
 
 HTTPS 운영 설정(`SECURE_COOKIE=1`, `TRUST_PROXY=1`)이 켜져 있으면 로그인 쿠키는 HTTPS 전용이고 브라우저가 항상 HTTPS로 접속하도록 HSTS가 함께 전송됩니다(하위 도메인에는 적용하지 않음).
 
+### Cloudflare 를 쓸 때 (jejubaseball.com 이 Cloudflare 네임서버로 바뀐 경우)
+
+1. **Cloudflare → DNS → Records → Add record:** 종류 `A`, 이름 `stock`(또는 `@`), IPv4 주소는 서버 공인 IP, 프록시 상태는 **DNS 전용(회색 구름)** 으로 시작.
+   - 같은 이름의 기존 레코드가 있으면 덮어쓰지 말고 먼저 무엇을 가리키는지 확인(쇼핑몰이면 하위 주소 사용).
+2. 서버에서 `CLOUDFLARE=1` 을 붙여 설치: `DOMAIN=stock.jejubaseball.com CLOUDFLARE=1 bash deploy/setup.sh`
+   - Caddy 가 Cloudflare 의 접속자 IP(CF-Connecting-IP)를 믿고 앱에 전달합니다. 이게 없으면 모든 접속이 Cloudflare 서버 IP로 보여 로그인 잠금이 서로 영향을 줍니다.
+3. `https://도메인` 이 열리면 **Cloudflare → SSL/TLS → Overview → `Full (strict)`** 로 설정한 뒤, 레코드를 **프록시됨(주황 구름)** 으로 바꿉니다.
+   - `Flexible` 은 쓰지 마세요(HTTP→HTTPS 이동이 무한 반복됩니다).
+   - 처음부터 주황 구름이면 인증서 발급이 실패할 수 있어 회색으로 시작합니다.
+4. (선택) 서버 방화벽에서 80/443 을 Cloudflare IP 대역에서만 허용하면 Cloudflare 를 거치지 않은 직접 접속을 막을 수 있습니다.
+
 ## 1. 서버에 올리기 (수동 설치 설명)
 
 ```sh
