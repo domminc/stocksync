@@ -106,7 +106,11 @@ echo "앱이 127.0.0.1:$PORT 에서 실행 중입니다."
 
 say "HTTPS 리버스 프록시"
 LISTENERS="$(ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || true)"
-if echo "$LISTENERS" | grep -qE 'nginx|apache2|httpd'; then
+if echo "$LISTENERS" | grep -qE 'traefik|docker-proxy'; then
+  echo "이 서버는 Docker/Traefik 이 80/443 포트를 쓰고 있어 Caddy 를 설치하지 않았습니다 (설치하면 기존 사이트와 충돌합니다)."
+  echo "Traefik 용 배포를 사용하세요: $APP_DIR/deploy/docker-compose.traefik.yml (docs/OPERATIONS.md '0-B' 참고)."
+  echo "지금 만든 systemd 서비스(127.0.0.1:$PORT)는 Docker 배포를 쓸 경우 필요 없으니 'systemctl disable --now stocksync' 로 끄세요."
+elif echo "$LISTENERS" | grep -qE 'nginx|apache2|httpd'; then
   echo "이 서버는 이미 다른 웹 서버(nginx/apache)가 80/443 포트를 쓰고 있어 Caddy 를 설치하지 않았습니다."
   echo "기존 웹 서버에 아래 설정을 추가하세요 (server_name $DOMAIN, 인증서는 certbot 등으로 발급):"
   cat <<NGINX

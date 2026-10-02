@@ -29,6 +29,24 @@ HTTPS 운영 설정(`SECURE_COOKIE=1`, `TRUST_PROXY=1`)이 켜져 있으면 로�
    - 처음부터 주황 구름이면 인증서 발급이 실패할 수 있어 회색으로 시작합니다.
 4. (선택) 서버 방화벽에서 80/443 을 Cloudflare IP 대역에서만 허용하면 Cloudflare 를 거치지 않은 직접 접속을 막을 수 있습니다.
 
+### 0-B. 서버가 Docker + Traefik 을 쓸 때 (Hostinger VPS 등)
+
+80/443 포트를 Traefik(Docker)이 쓰는 서버에서는 `deploy/setup.sh` 의 Caddy 를 **설치하면 기존 사이트(baseballorder.com 등)와 포트가 충돌**합니다. `setup.sh` 는 이를 감지하면 Caddy 설치를 건너뜁니다. 대신 Docker 로 올립니다.
+
+1. 서버에서 저장소를 받고, 저장소 폴더에 `.env` 를 만듭니다 (저장소에는 올리지 않음):
+   ```
+   STOCKSYNC_DOMAIN=stock.jejubaseball.com
+   TRAEFIK_CERT_RESOLVER=letsencrypt   # 기존 Traefik 설정의 resolver 이름과 같아야 함
+   PASSWORD_MIN_LENGTH=6               # 관리자 비밀번호가 6자일 때만. 기본은 10
+   ADMIN_USERNAME=jiny
+   ADMIN_PASSWORD=<서버에서만 입력>     # 계정이 만들어진 뒤 이 줄을 지우고 재기동
+   ```
+2. `docker compose -f deploy/docker-compose.traefik.yml --project-directory . up -d --build`
+3. Cloudflare DNS: `stock` A 레코드 → 서버 IP. 처음엔 회색 구름으로 인증서 발급 확인 후 주황 구름 + SSL `Full (strict)`.
+4. 데이터는 Docker 볼륨 `stocksync_data`(`/data/stocksync.db`)에 저장됩니다. 백업: `docker exec stocksync node --disable-warning=ExperimentalWarning scripts/backup.js` 후 `docker cp` 로 서버 밖에 보관하세요.
+5. 비밀번호 초기화(관리자 본인이 잠긴 경우): `docker exec -it stocksync npm run reset-password -- jiny`
+6. 로그인 잠금은 IP 기준 항목이 있는데, Cloudflare→Traefik 뒤에서는 접속자 IP 가 Cloudflare 주소로 보일 수 있습니다. 사용자(계정) 기준 잠금은 그대로 동작합니다.
+
 ## 1. 서버에 올리기 (수동 설치 설명)
 
 ```sh
