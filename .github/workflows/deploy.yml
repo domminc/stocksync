@@ -24,6 +24,8 @@ jobs:
       - run: npm test
 
   deploy:
+    # Hostinger API 쓰기 권한이 확인되기 전까지는 수동 실행(Run workflow)일 때만 배포한다.
+    if: github.event_name == 'workflow_dispatch'
     needs: test
     runs-on: ubuntu-latest
     steps:
