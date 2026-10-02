@@ -19,8 +19,8 @@ services:
       PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-10}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-jiny}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      SRC_URL: "https://codeload.github.com/domminc/stocksync/tar.gz/1160d4889a543765d9bdb13da4d523ad39ae094c"
-      DEPLOY_SHA: "1160d4889a543765d9bdb13da4d523ad39ae094c"
+      SRC_URL: "https://codeload.github.com/domminc/stocksync/tar.gz/1531c375ba99fee93e6b661318e95db3917d9171"
+      DEPLOY_SHA: "1531c375ba99fee93e6b661318e95db3917d9171"
     volumes:
       - stocksync_app:/app
       - stocksync_data:/data
