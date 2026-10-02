@@ -26,7 +26,16 @@
     <dt>상품코드</dt><dd><%= p.sku_code %></dd>
     <dt>분류</dt><dd><%= p.category || '-' %></dd>
     <dt>판매가</dt><dd><%= p.price === null ? '-' : n(p.price) + '원' %></dd>
-    <dt>안전재고</dt><dd><%= p.safety_stock %></dd>
+    <dt>안전재고</dt><dd>
+      <% if (can('product.write')) { %>
+      <form method="post" action="/products/<%= p.id %>/safety" class="inline-edit">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input class="qty-input" type="number" name="safety_stock" min="0" max="1000000" value="<%= p.safety_stock %>" inputmode="numeric" aria-label="안전재고">
+        <button class="small" type="submit">저장</button>
+      </form>
+      <% } else { %><%= p.safety_stock %><% } %>
+      <div class="small muted help-line">재고가 이 수량 이하가 되면 ‘부족’으로 표시됩니다. 0이면 부족 경고 없이 품절만 표시합니다.</div>
+    </dd>
     <dt>재고 수량 관리</dt><dd><%= p.tracked ? '예' : '아니오' %></dd>
   </dl>
 </div>

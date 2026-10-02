@@ -23,12 +23,24 @@
   <div class="fit"><button class="pri" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>검색</button></div>
 </form>
 
+<% if (can('product.write') && result.total > 0) { %>
+<details class="card bulk-safety">
+  <summary><strong>안전재고 일괄 설정</strong> <span class="small muted">— 지금 검색·보기 조건의 상품 <%= n(result.total) %>개에 한 번에 적용</span></summary>
+  <form method="post" action="/products/safety-bulk" class="row ac mt12" data-confirm="<%= q || filter ? '현재 조건에 맞는 ' : '전체 ' %>상품 <%= n(result.total) %>개의 안전재고를 바꿉니다. 계속할까요?">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="q" value="<%= q %>"><input type="hidden" name="filter" value="<%= filter %>">
+    <div class="minw160"><label for="bulk-safety">안전재고 (개)</label><input id="bulk-safety" name="safety_stock" type="number" min="0" max="1000000" inputmode="numeric" required placeholder="예: 5"></div>
+    <div class="fit"><button class="pri" type="submit">적용</button></div>
+  </form>
+  <p class="small muted mt8">이 수량 이하가 되면 ‘부족’으로 표시됩니다. 검색어나 ‘보기’로 상품을 먼저 좁힌 뒤 적용하세요. 상품 하나만 바꾸려면 상품 이름을 눌러 상세 화면에서 바꿉니다.</p>
+</details>
+<% } %>
+
 <% if (result.rows.length === 0) { %>
   <p class="muted">조건에 맞는 상품이 없습니다.</p>
 <% } else { %>
 <div class="table-wrap"><table class="stack">
   <tr class="thead">
-    <th>상품</th><th>바코드</th><th class="num">판매 가능</th><th class="num">보류</th><th class="num">미출고 주문</th><th class="num">안전재고</th><th>상태</th>
+    <th>상품</th><th>바코드</th><th class="num">판매 가능</th><th class="num">보류</th><th class="num">미출고 주문</th><th class="num" title="이 수량 이하이면 ‘부족’으로 표시됩니다">안전재고</th><th>상태</th>
   </tr>
   <% result.rows.forEach(function (r) {
        var st = stockStatus({ tracked: r.tracked, qty: r.qty, safety: r.safety_stock });

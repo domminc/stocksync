@@ -516,3 +516,12 @@ td.sel input, th.selcol input { margin: 0; }
   .bulkbar .bulk-sel button { margin-left: auto; min-height: 40px; padding: 0 14px; }
   .bulkbar > form:last-child button { width: 100%; min-height: 40px; }
 }
+
+/* 안전재고 입력 */
+.inline-edit { display: flex; align-items: center; gap: 8px; margin: 0; }
+.inline-edit .qty-input { width: 110px !important; text-align: left; }
+.help-line { font-weight: 400; margin-top: 4px; }
+.bulk-safety > summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.bulk-safety > summary::-webkit-details-marker { display: none; }
+.bulk-safety > summary::before { content: "＋"; color: var(--pri); font-weight: 700; margin-right: 2px; }
+.bulk-safety[open] > summary::before { content: "－"; }

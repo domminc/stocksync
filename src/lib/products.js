@@ -177,6 +177,30 @@ export function listProducts(db, { q = '', filter = '', page = 1, pageSize = 50 
   return { rows, total, page: cur, pages, pageSize };
 }
 
+export const SAFETY_MAX = 1000000;
+
+/** 안전재고 값 검사: 0 이상 정수 */
+export function parseSafetyStock(v) {
+  const s = String(v ?? '').trim();
+  if (!/^\d{1,7}$/.test(s) || Number(s) > SAFETY_MAX) throw new ValidationError(`안전재고는 0 이상 ${SAFETY_MAX.toLocaleString('ko-KR')} 이하의 숫자여야 합니다.`);
+  return Number(s);
+}
+
+/** 상품 1개의 안전재고만 바꾼다 */
+export function setSafetyStock(db, id, value) {
+  const n = parseSafetyStock(value);
+  const r = db.prepare('UPDATE products SET safety_stock = ?, updated_at = ? WHERE id = ?').run(n, nowIso(), id);
+  return Number(r.changes) > 0 ? n : null;
+}
+
+/** 검색·보기 조건에 맞는 모든 상품의 안전재고를 한 번에 바꾼다. 바뀐 상품 수를 돌려준다. */
+export function setSafetyStockMany(db, { q = '', filter = '' } = {}, value) {
+  const n = parseSafetyStock(value);
+  const { whereSql, params } = buildWhere({ q, filter });
+  const r = db.prepare(`UPDATE products SET safety_stock = ?, updated_at = ? WHERE id IN (SELECT p.id ${FROM} ${whereSql})`).run(n, nowIso(), ...params);
+  return { value: n, count: Number(r.changes) };
+}
+
 /** 라벨을 인쇄할 상품들: ids 가 있으면 그 상품, 없으면 검색 조건에 맞는 상품 (최대 limit 개) */
 export function labelTargets(db, { ids = [], q = '', filter = '', limit = 1000 } = {}) {
   const select = `SELECT p.id, p.barcode, p.name, p.option_name, p.sku_code, p.label_printed_at, COALESCE(i.qty, 0) AS qty ${FROM}`;

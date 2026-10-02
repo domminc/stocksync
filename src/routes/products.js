@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  listProducts, getProduct, createProduct, updateProduct, importProducts, PRODUCT_CSV_TEMPLATE, ValidationError,
+  listProducts, getProduct, createProduct, updateProduct, importProducts, setSafetyStock, setSafetyStockMany, PRODUCT_CSV_TEMPLATE, ValidationError,
 } from '../lib/products.js';
 import { resolveHold } from '../lib/inventory.js';
 import { decodeText, csvCell } from '../lib/csv.js';
@@ -104,6 +104,35 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
     const p = getProduct(db, int(req.params.id, 0));
     if (!p) return res.status(404).render('error', { title: '찾을 수 없음', message: '상품을 찾을 수 없습니다.' });
     res.render('product_form', { title: '상품 수정', p, isNew: false });
+  });
+
+  // 검색·보기 조건에 맞는 모든 상품의 안전재고를 한 번에 바꾼다 (/products/:id 보다 먼저 등록해야 한다)
+  app.post('/products/safety-bulk', guard('product.write'), (req, res) => {
+    const q = String(req.body.q ?? '').slice(0, 100);
+    const filter = Object.hasOwn(FILTERS, req.body.filter) ? String(req.body.filter) : '';
+    const target = `/products?${new URLSearchParams({ q, filter })}`;
+    try {
+      const r = setSafetyStockMany(db, { q, filter }, req.body.safety_stock);
+      audit(db, req.user.id, 'product.safety_bulk', `value=${r.value} count=${r.count} q=${q} filter=${filter}`);
+      res.redirectWith(target, `상품 ${r.count.toLocaleString('ko-KR')}개의 안전재고를 ${r.value}개로 바꿨습니다.`);
+    } catch (e) {
+      if (e instanceof ValidationError) return res.redirectWith(target, e.message, 'err');
+      throw e;
+    }
+  });
+
+  // 상품 상세에서 안전재고만 바로 바꾼다
+  app.post('/products/:id/safety', guard('product.write'), (req, res) => {
+    const id = int(req.params.id, 0);
+    try {
+      const v = setSafetyStock(db, id, req.body.safety_stock);
+      if (v === null) return res.status(404).render('error', { title: '찾을 수 없음', message: '상품을 찾을 수 없습니다.' });
+      audit(db, req.user.id, 'product.safety', `#${id} → ${v}`);
+      res.redirectWith(`/products/${id}`, `안전재고를 ${v}개로 바꿨습니다.`);
+    } catch (e) {
+      if (e instanceof ValidationError) return res.redirectWith(`/products/${id}`, e.message, 'err');
+      throw e;
+    }
   });
 
   app.post('/products/:id', guard('product.write'), (req, res) => {
