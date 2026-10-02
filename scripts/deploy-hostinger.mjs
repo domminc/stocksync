@@ -141,7 +141,11 @@ async function waitHealthy(token, timeoutMs = 360_000) {
 }
 
 async function exists(token) {
-  try { return await api(token, 'GET', `/docker/${PROJECT}`); } catch (e) { if (e.status === 404) return null; throw e; }
+  // Hostinger 는 아직 없는 프로젝트를 조회하면 404 대신 403 을 돌려주기도 한다. 진짜 권한 문제면 이어지는 생성 요청에서 드러난다.
+  try { return await api(token, 'GET', `/docker/${PROJECT}`); } catch (e) {
+    if (e.status === 404 || e.status === 403) { console.log(`프로젝트 조회 ${e.status} → 아직 없는 것으로 처리합니다.`); return null; }
+    throw e;
+  }
 }
 
 async function storeProject(token, content, envText) {
