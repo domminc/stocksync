@@ -23,3 +23,11 @@ test('Traefik compose 에서 인증서 resolver 이름을 찾는다', () => {
   assert.equal(certificateResolver('- --certificatesresolvers.letsencrypt.acme.email=a'), 'letsencrypt');
   assert.equal(certificateResolver('nothing'), '');
 });
+
+test('deploy/hostinger-compose.tpl.yml 은 스크립트가 만드는 템플릿과 같다', async () => {
+  const { readFileSync } = await import('node:fs');
+  const expected = composeContent({ repository: 'x/y', sha: 'x', resolver: 'letsencrypt', templated: true });
+  assert.equal(readFileSync(new URL('../deploy/hostinger-compose.tpl.yml', import.meta.url), 'utf8'), expected);
+  assert.match(expected, /SRC_URL: \$\{SRC_URL\}/);
+  assert.match(expected, /DEPLOY_SHA: \$\{DEPLOY_SHA\}/);
+});

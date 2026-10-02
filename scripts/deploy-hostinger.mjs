@@ -16,7 +16,7 @@ export function certificateResolver(traefikCompose) {
 }
 
 // 서버 컨테이너가 실행할 compose. 비밀값은 ${...} 로 두고 값은 프로젝트 환경변수로 따로 보낸다.
-export function composeContent({ repository, sha, domain = DOMAIN, resolver = 'letsencrypt' }) {
+export function composeContent({ repository, sha, domain = DOMAIN, resolver = 'letsencrypt', templated = false }) {
   const url = `https://codeload.github.com/${repository}/tar.gz/${sha}`;
   const fetchCode = "fetch(process.env.SRC_URL).then(r=>{if(!r.ok)throw new Error('download '+r.status);return r.arrayBuffer()}).then(b=>require('fs').writeFileSync('/tmp/s.tgz',Buffer.from(b)))";
   const health = "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))";
@@ -40,8 +40,8 @@ export function composeContent({ repository, sha, domain = DOMAIN, resolver = 'l
       PASSWORD_MIN_LENGTH: \${PASSWORD_MIN_LENGTH:-10}
       ADMIN_USERNAME: \${ADMIN_USERNAME:-jiny}
       ADMIN_PASSWORD: \${ADMIN_PASSWORD:-}
-      SRC_URL: ${JSON.stringify(url)}
-      DEPLOY_SHA: ${JSON.stringify(sha)}
+      SRC_URL: ${templated ? '${SRC_URL}' : JSON.stringify(url)}
+      DEPLOY_SHA: ${templated ? '${DEPLOY_SHA}' : JSON.stringify(sha)}
     volumes:
       - stocksync_app:/app
       - stocksync_data:/data
@@ -153,18 +153,24 @@ function envAsObject(envText) {
   return Object.fromEntries(envText.split('\n').filter(Boolean).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
 }
 
-async function storeProject(token, content, envText, preferObject) {
-  // 문서에 환경변수 형식이 명시돼 있지 않다. 기존 프로젝트가 객체로 돌려주면 객체를, 아니면 문자열을 먼저 보내고
-  // 거부(403/422)되면 다른 형식으로 한 번 더 보낸다.
-  const forms = preferObject ? [envAsObject(envText), envText] : [envText, envAsObject(envText)];
+// Hostinger 가 어떤 형식의 요청은 403 으로 거부하는 경우가 있어, 형식을 바꿔 가며 통과하는 방법을 찾는다.
+// (compose 본문: 직접 / 저장소의 raw URL,  환경변수: 문자열 / 객체)
+async function storeProject(token, { content, contentUrl, envText, preferObject }) {
+  const envs = preferObject ? [envAsObject(envText), envText] : [envText, envAsObject(envText)];
+  const bodies = [['본문', content], ['URL', contentUrl]];
   let last;
-  for (const environment of forms) {
-    try {
-      return await api(token, 'POST', '/docker', { project_name: PROJECT, content, environment });
-    } catch (e) {
-      last = e;
-      if (e.status !== 422 && e.status !== 403) throw e;
-      console.log(`환경변수를 ${typeof environment === 'string' ? '문자열' : '객체'}로 보낸 요청이 거부됨(${e.status}). 다른 형식으로 재시도합니다.`);
+  for (const [bodyName, body] of bodies) {
+    for (const environment of envs) {
+      const envName = typeof environment === 'string' ? '문자열' : '객체';
+      try {
+        const res = await api(token, 'POST', '/docker', { project_name: PROJECT, content: body, environment });
+        console.log(`요청 성공: compose ${bodyName} + 환경변수 ${envName}`);
+        return res;
+      } catch (e) {
+        last = e;
+        if (e.status !== 422 && e.status !== 403) throw e;
+        console.log(`거부됨(${e.status}): compose ${bodyName} + 환경변수 ${envName}`);
+      }
     }
   }
   throw last;
@@ -208,10 +214,16 @@ async function main() {
     ADMIN_USERNAME: process.env.STOCKSYNC_ADMIN_USERNAME || 'jiny',
     // 계정이 한번 만들어지면 이 값은 쓰이지 않는다. 시크릿을 지우면 다음 배포부터 서버 환경에서도 사라진다.
     ADMIN_PASSWORD: adminPassword,
+    SRC_URL: `https://codeload.github.com/${repository}/tar.gz/${sha}`,
+    DEPLOY_SHA: sha,
   });
 
-  const content = composeContent({ repository, sha, resolver: resolver || 'letsencrypt' });
-  const stored = await storeProject(token, content, envText, Boolean(current) && typeof current.environment === 'object' && current.environment !== null);
+  const content = composeContent({ repository, sha, resolver: resolver || 'letsencrypt', templated: true });
+  const contentUrl = `https://raw.githubusercontent.com/${repository}/${sha}/deploy/hostinger-compose.tpl.yml`;
+  const stored = await storeProject(token, {
+    content, contentUrl, envText,
+    preferObject: Boolean(current) && typeof current.environment === 'object' && current.environment !== null,
+  });
   await waitAction(token, Number(stored.id));
   const updated = await api(token, 'POST', `/docker/${PROJECT}/update`);
   await waitAction(token, Number(updated.id));

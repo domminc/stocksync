@@ -1,0 +1,54 @@
+services:
+  stocksync:
+    image: node:22-slim
+    container_name: stocksync
+    restart: unless-stopped
+    working_dir: /app
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      DB_PATH: /data/stocksync.db
+      SECURE_COOKIE: "1"
+      TRUST_PROXY: "1"
+      PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-10}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-jiny}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SRC_URL: ${SRC_URL}
+      DEPLOY_SHA: ${DEPLOY_SHA}
+    volumes:
+      - stocksync_app:/app
+      - stocksync_data:/data
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        mkdir -p /app /data
+        cd /app
+        if [ ! -f .deploy-sha ] || [ "$$(cat .deploy-sha)" != "$$DEPLOY_SHA" ] || [ ! -d node_modules ]; then
+          find /app -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+          node -e "fetch(process.env.SRC_URL).then(r=>{if(!r.ok)throw new Error('download '+r.status);return r.arrayBuffer()}).then(b=>require('fs').writeFileSync('/tmp/s.tgz',Buffer.from(b)))"
+          tar xzf /tmp/s.tgz --strip-components=1 -C /app
+          npm ci --omit=dev --no-audit --no-fund
+          printf '%s' "$$DEPLOY_SHA" > .deploy-sha
+        fi
+        exec node --disable-warning=ExperimentalWarning src/server.js
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.stocksync.rule=Host(`jejubaseball.com`)"
+      - "traefik.http.routers.stocksync.entrypoints=websecure"
+      - "traefik.http.routers.stocksync.tls=true"
+      - "traefik.http.routers.stocksync.tls.certresolver=letsencrypt"
+      - "traefik.http.services.stocksync.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 150s
+
+volumes:
+  stocksync_app:
+  stocksync_data:
