@@ -22,7 +22,7 @@ HTTPS 운영 설정(`SECURE_COOKIE=1`, `TRUST_PROXY=1`)이 켜져 있으면 로�
 
 1. **Cloudflare → DNS → Records → Add record:** 종류 `A`, 이름 `stock`(또는 `@`), IPv4 주소는 서버 공인 IP, 프록시 상태는 **DNS 전용(회색 구름)** 으로 시작.
    - 같은 이름의 기존 레코드가 있으면 덮어쓰지 말고 먼저 무엇을 가리키는지 확인(쇼핑몰이면 하위 주소 사용).
-2. 서버에서 `CLOUDFLARE=1` 을 붙여 설치: `DOMAIN=stock.jejubaseball.com CLOUDFLARE=1 bash deploy/setup.sh`
+2. 서버에서 `CLOUDFLARE=1` 을 붙여 설치: `DOMAIN=jejubaseball.com CLOUDFLARE=1 bash deploy/setup.sh`
    - Caddy 가 Cloudflare 의 접속자 IP(CF-Connecting-IP)를 믿고 앱에 전달합니다. 이게 없으면 모든 접속이 Cloudflare 서버 IP로 보여 로그인 잠금이 서로 영향을 줍니다.
 3. `https://도메인` 이 열리면 **Cloudflare → SSL/TLS → Overview → `Full (strict)`** 로 설정한 뒤, 레코드를 **프록시됨(주황 구름)** 으로 바꿉니다.
    - `Flexible` 은 쓰지 마세요(HTTP→HTTPS 이동이 무한 반복됩니다).
@@ -35,14 +35,14 @@ HTTPS 운영 설정(`SECURE_COOKIE=1`, `TRUST_PROXY=1`)이 켜져 있으면 로�
 
 1. 서버에서 저장소를 받고, 저장소 폴더에 `.env` 를 만듭니다 (저장소에는 올리지 않음):
    ```
-   STOCKSYNC_DOMAIN=stock.jejubaseball.com
+   STOCKSYNC_DOMAIN=jejubaseball.com
    TRAEFIK_CERT_RESOLVER=letsencrypt   # 기존 Traefik 설정의 resolver 이름과 같아야 함
    PASSWORD_MIN_LENGTH=6               # 관리자 비밀번호가 6자일 때만. 기본은 10
    ADMIN_USERNAME=jiny
    ADMIN_PASSWORD=<서버에서만 입력>     # 계정이 만들어진 뒤 이 줄을 지우고 재기동
    ```
 2. `docker compose -f deploy/docker-compose.traefik.yml --project-directory . up -d --build`
-3. Cloudflare DNS: `stock` A 레코드 → 서버 IP. 처음엔 회색 구름으로 인증서 발급 확인 후 주황 구름 + SSL `Full (strict)`.
+3. Cloudflare DNS: `@`(루트) A 레코드 → 서버 IP. 처음엔 회색 구름으로 인증서 발급 확인 후 주황 구름 + SSL `Full (strict)`.
 4. 데이터는 Docker 볼륨 `stocksync_data`(`/data/stocksync.db`)에 저장됩니다. 백업: `docker exec stocksync node --disable-warning=ExperimentalWarning scripts/backup.js` 후 `docker cp` 로 서버 밖에 보관하세요.
 5. 비밀번호 초기화(관리자 본인이 잠긴 경우): `docker exec -it stocksync npm run reset-password -- jiny`
 6. 로그인 잠금은 IP 기준 항목이 있는데, Cloudflare→Traefik 뒤에서는 접속자 IP 가 Cloudflare 주소로 보일 수 있습니다. 사용자(계정) 기준 잠금은 그대로 동작합니다.
