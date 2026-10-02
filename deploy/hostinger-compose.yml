@@ -1,5 +1,5 @@
 # Hostinger hPanel → VPS → Docker Manager → Compose 에 통째로 붙여넣는 파일 (비밀값 없음)
-# 환경변수 칸에 ADMIN_USERNAME / ADMIN_PASSWORD / PASSWORD_MIN_LENGTH 를 따로 입력하세요.
+# ADMIN_PASSWORD 줄에는 서버에서 직접 값을 입력하세요. 계정이 이미 만들어졌다면 비워 두어도 됩니다.
 # 업데이트: SRC_URL 의 커밋 해시와 DEPLOY_SHA 를 같은 새 값으로 바꾸고 다시 배포
 services:
   stocksync:
@@ -19,8 +19,8 @@ services:
       PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-10}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-jiny}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      SRC_URL: "https://codeload.github.com/domminc/stocksync/tar.gz/27aec348bbcd3f3bf00137ad3149cd7c57ede8b5"
-      DEPLOY_SHA: "27aec348bbcd3f3bf00137ad3149cd7c57ede8b5"
+      SRC_URL: "https://codeload.github.com/domminc/stocksync/tar.gz/1160d4889a543765d9bdb13da4d523ad39ae094c"
+      DEPLOY_SHA: "1160d4889a543765d9bdb13da4d523ad39ae094c"
     volumes:
       - stocksync_app:/app
       - stocksync_data:/data
