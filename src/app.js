@@ -1,0 +1,150 @@
+import express from 'express';
+import crypto from 'node:crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadSession } from './lib/auth.js';
+import { can, ROLES } from './lib/permissions.js';
+import { fmtTime } from './lib/time.js';
+import { StockError, EVENT_LABEL, STATUS_LABEL, stockStatus } from './lib/inventory.js';
+import { ValidationError } from './lib/products.js';
+import { registerAuth } from './routes/auth.js';
+import { registerDashboard } from './routes/dashboard.js';
+import { registerProducts } from './routes/products.js';
+import { registerStock } from './routes/stock.js';
+import { registerOrders } from './routes/orders.js';
+import { registerUsers } from './routes/users.js';
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+const NAV = [
+  { group: '현황', items: [
+    { href: '/', label: '대시보드', perm: 'view', exact: true },
+    { href: '/products', label: '상품·재고', perm: 'view', exact: false, not: ['/products/import'] },
+    { href: '/ledger', label: '재고 원장', perm: 'view' },
+  ] },
+  { group: '매장', items: [
+    { href: '/scan/in', label: '입고 스캔', perm: 'stock.in' },
+    { href: '/scan/out', label: '출고 스캔', perm: 'stock.out' },
+    { href: '/adjust', label: '재고 조정', perm: 'stock.adjust' },
+  ] },
+  { group: '온라인', items: [
+    { href: '/orders', label: '주문 목록', perm: 'view', exact: true },
+    { href: '/orders/ship', label: '출고 스캔', perm: 'order.ship' },
+    { href: '/orders/import', label: '주문 가져오기', perm: 'order.import' },
+    { href: '/orders/unmatched', label: '매칭 대기', perm: 'order.match' },
+  ] },
+  { group: '관리', items: [
+    { href: '/products/import', label: '상품 가져오기', perm: 'product.import' },
+    { href: '/users', label: '사용자', perm: 'user.manage' },
+  ] },
+];
+
+function parseCookies(header) {
+  const out = {};
+  for (const part of String(header || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i < 0) continue;
+    try { out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); } catch { /* 무시 */ }
+  }
+  return out;
+}
+
+const safeEqual = (a, b) => {
+  const x = Buffer.from(String(a ?? ''));
+  const y = Buffer.from(String(b ?? ''));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
+
+export function createApp({ db, secureCookie = false, trustProxy = false, barcodeStrict = false }) {
+  const app = express();
+  app.disable('x-powered-by');
+  if (trustProxy) app.set('trust proxy', 1);
+  app.set('view engine', 'ejs');
+  app.set('views', path.join(root, 'views'));
+
+  app.use((req, res, next) => {
+    res.set({
+      'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'same-origin',
+      'Cache-Control': 'no-store',
+    });
+    next();
+  });
+  app.use('/static', express.static(path.join(root, 'public'), { maxAge: '1h', setHeaders: (res) => res.set('Cache-Control', 'public, max-age=3600') }));
+  app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+
+  app.use((req, res, next) => {
+    const cookies = parseCookies(req.headers.cookie);
+    req.sid = cookies.sid || '';
+    const s = loadSession(db, req.sid);
+    req.user = s?.user ?? null;
+    req.csrf = s?.csrf ?? '';
+
+    const msg = typeof req.query.msg === 'string' ? req.query.msg.slice(0, 300) : '';
+    Object.assign(res.locals, {
+      user: req.user, csrf: req.csrf, ROLES, EVENT_LABEL, STATUS_LABEL, stockStatus, fmtTime,
+      can: (perm) => Boolean(req.user && can(req.user.role, perm)),
+      n: (v) => Number(v ?? 0).toLocaleString('ko-KR'),
+      msg, msgType: req.query.t === 'err' ? 'err' : 'ok',
+      title: '', currentPath: req.path,
+      nav: NAV.map((g) => ({
+        group: g.group,
+        items: g.items.filter((i) => req.user && can(req.user.role, i.perm)).map((i) => ({
+          ...i,
+          active: i.exact ? req.path === i.href : (req.path === i.href || req.path.startsWith(`${i.href}/`)) && !(i.not ?? []).some((x) => req.path.startsWith(x)),
+        })),
+      })).filter((g) => g.items.length),
+    });
+    res.redirectWith = (url, message, type = 'ok') => {
+      const sep = url.includes('?') ? '&' : '?';
+      res.redirect(`${url}${sep}msg=${encodeURIComponent(String(message).slice(0, 300))}&t=${type}`);
+    };
+    next();
+  });
+
+  /** 로그인 + 권한 + (쓰기 요청이면) CSRF 토큰을 확인한다. perm 이 null 이면 로그인만 확인. */
+  const guard = (perm = null) => (req, res, next) => {
+    if (!req.user) {
+      if (req.method === 'GET') return res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
+      return res.status(401).render('error', { title: '로그인 필요', message: '로그인이 필요합니다.' });
+    }
+    if (perm && !can(req.user.role, perm)) {
+      return res.status(403).render('error', { title: '권한 없음', message: '이 기능을 사용할 권한이 없습니다. 관리자에게 문의하세요.' });
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      const token = req.get('x-csrf-token') || req.body?._csrf;
+      if (!token || !safeEqual(token, req.csrf)) {
+        return res.status(403).render('error', { title: '요청 거부', message: '화면이 오래되었거나 잘못된 요청입니다. 새로고침 후 다시 시도하세요.' });
+      }
+    }
+    next();
+  };
+
+  const ctx = { db, guard, secureCookie, barcodeStrict };
+  registerAuth(app, ctx);
+  registerDashboard(app, ctx);
+  registerProducts(app, ctx);
+  registerStock(app, ctx);
+  registerOrders(app, ctx);
+  registerUsers(app, ctx);
+
+  app.use((req, res) => {
+    res.status(404).render('error', { title: '찾을 수 없음', message: '페이지를 찾을 수 없습니다.' });
+  });
+
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, req, res, _next) => {
+    if (err instanceof StockError || err instanceof ValidationError) {
+      return res.status(400).render('error', { title: '처리할 수 없음', message: err.message });
+    }
+    if (err?.type === 'entity.too.large') {
+      return res.status(413).render('error', { title: '파일이 너무 큼', message: '파일이 너무 큽니다.' });
+    }
+    console.error('[오류]', req.method, req.path, err);
+    res.status(500).render('error', { title: '오류', message: '서버에서 오류가 발생했습니다. 잠시 후 다시 시도하세요.' });
+  });
+
+  return app;
+}

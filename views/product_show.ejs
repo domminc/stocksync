@@ -1,0 +1,70 @@
+<%- include('partials/head') %>
+<% var st = stockStatus({ tracked: p.tracked, qty: p.qty, safety: p.safety_stock }); %>
+<div class="row ac">
+  <div>
+    <h1><%= p.name %></h1>
+    <p class="muted"><%= p.option_name %> <span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span>
+      <% if (!p.active) { %><span class="chip">사용 중지</span><% } %></p>
+  </div>
+  <div class="fit actions">
+    <% if (can('product.write')) { %><a class="btn" href="/products/<%= p.id %>/edit">수정</a><% } %>
+    <% if (can('stock.adjust') && p.tracked) { %><a class="btn" href="/adjust?code=<%= encodeURIComponent(p.barcode) %>">재고 조정</a><% } %>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="stat"><div class="label">판매 가능</div><div class="value"><%= n(p.qty) %></div></div>
+  <div class="stat"><div class="label">보류</div><div class="value"><%= n(p.hold) %></div></div>
+  <div class="stat <%= p.pending > p.qty ? 'bad' : '' %>"><div class="label">미출고 주문</div><div class="value"><%= n(p.pending) %></div><div class="sub">출고 후 예상 <%= n(p.qty - p.pending) %>개</div></div>
+</div>
+
+<div class="card">
+  <dl class="kv">
+    <dt>바코드</dt><dd><%= p.barcode %></dd>
+    <dt>상품코드</dt><dd><%= p.sku_code %></dd>
+    <dt>분류</dt><dd><%= p.category || '-' %></dd>
+    <dt>판매가</dt><dd><%= p.price === null ? '-' : n(p.price) + '원' %></dd>
+    <dt>안전재고</dt><dd><%= p.safety_stock %></dd>
+    <dt>재고 수량 관리</dt><dd><%= p.tracked ? '예' : '아니오' %></dd>
+  </dl>
+</div>
+
+<% if (p.hold > 0 && can('stock.adjust')) { %>
+<div class="card">
+  <h2 class="mt0">보류 재고 처리 (<%= n(p.hold) %>개)</h2>
+  <form method="post" action="/products/<%= p.id %>/hold" class="row" data-confirm="보류 재고를 처리합니다. 계속할까요?">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div><label for="hq">수량</label><input id="hq" name="qty" type="number" min="1" max="<%= p.hold %>" value="<%= p.hold %>" required></div>
+    <div class="f2s"><label for="hr">메모</label><input id="hr" name="reason" type="text" maxlength="200" placeholder="예: 검수 결과 이상 없음"></div>
+    <div class="fit"><button name="action" value="release" type="submit">판매 가능으로 되돌리기</button></div>
+    <div class="fit"><button class="danger" name="action" value="discard" type="submit">폐기</button></div>
+  </form>
+</div>
+<% } %>
+
+<% if (orders.length) { %>
+<h2>미출고 주문</h2>
+<div class="table-wrap"><table>
+  <tr><th>주문번호</th><th>쇼핑몰</th><th class="num">수량</th><th>주문일시</th></tr>
+  <% orders.forEach(function (o) { %><tr><td><%= o.order_no %></td><td><%= o.channel %></td><td class="num"><%= o.qty %></td><td class="small"><%= o.ordered_at %></td></tr><% }) %>
+</table></div>
+<% } %>
+
+<h2>최근 재고 변동</h2>
+<% if (!ledger.length) { %><p class="muted">변동 이력이 없습니다.</p><% } else { %>
+<div class="table-wrap"><table>
+  <tr><th>시각</th><th>구분</th><th class="num">증감</th><th class="num">변동 후</th><th>메모</th><th>처리자</th></tr>
+  <% ledger.forEach(function (l) { %>
+  <tr>
+    <td class="small"><%= fmtTime(l.created_at) %></td>
+    <td><%= EVENT_LABEL[l.event_type] || l.event_type %></td>
+    <td class="num"><%= (l.qty_delta > 0 ? '+' : '') + l.qty_delta %><% if (l.hold_delta) { %> <span class="muted small">(보류 <%= (l.hold_delta > 0 ? '+' : '') + l.hold_delta %>)</span><% } %></td>
+    <td class="num"><%= n(l.qty_after) %></td>
+    <td class="small"><%= l.reason %></td>
+    <td class="small"><%= l.user_name || '-' %></td>
+  </tr>
+  <% }) %>
+</table></div>
+<p class="small"><a href="/ledger?q=<%= encodeURIComponent(p.barcode) %>">이 상품의 원장 전체 보기 →</a></p>
+<% } %>
+<%- include('partials/foot') %>

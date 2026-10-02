@@ -1,0 +1,19 @@
+<% if (result.pages > 1) { %>
+<nav class="pager" aria-label="페이지">
+  <% if (result.page > 1) { %><a href="<%= pageUrl(result.page - 1) %>">이전</a><% } %>
+  <% var shown = [];
+     for (var i = 1; i <= result.pages; i++) {
+       if (i === 1 || i === result.pages || Math.abs(i - result.page) <= 2) shown.push(i);
+     }
+     var prev = 0;
+     shown.forEach(function (i) {
+       if (i - prev > 1) { %><span class="gap">…</span><% }
+       if (i === result.page) { %><span class="cur"><%= i %></span><% } else { %><a href="<%= pageUrl(i) %>"><%= i %></a><% }
+       prev = i;
+     }) %>
+  <% if (result.page < result.pages) { %><a href="<%= pageUrl(result.page + 1) %>">다음</a><% } %>
+  <span class="gap small muted">총 <%= n(result.total) %>건</span>
+</nav>
+<% } else { %>
+<p class="small muted">총 <%= n(result.total) %>건</p>
+<% } %>

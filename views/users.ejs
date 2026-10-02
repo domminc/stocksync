@@ -1,0 +1,48 @@
+<%- include('partials/head') %>
+<h1>사용자 관리</h1>
+<div class="card">
+  <h2 class="mt0">역할별 권한</h2>
+  <div class="table-wrap"><table>
+    <tr><th>역할</th><th>할 수 있는 일</th></tr>
+    <tr><td><%= ROLES.admin %></td><td>모든 기능 + 사용자 관리</td></tr>
+    <tr><td><%= ROLES.manager %></td><td>상품 등록·가져오기, 입고·출고, 재고 조정, 온라인 주문 처리, 반품</td></tr>
+    <tr><td><%= ROLES.staff %></td><td>입고·출고 스캔, 조회 (재고 조정·가져오기는 불가)</td></tr>
+    <tr><td><%= ROLES.online %></td><td>온라인 주문 가져오기·출고확정·취소·반품·상품 연결, 조회</td></tr>
+    <tr><td><%= ROLES.viewer %></td><td>조회만 가능</td></tr>
+  </table></div>
+</div>
+
+<h2>사용자</h2>
+<div class="table-wrap"><table>
+  <tr><th>아이디</th><th>이름 · 역할 · 사용 여부 · 마지막 로그인 · 새 비밀번호(바꿀 때만 입력)</th></tr>
+  <% users.forEach(function (u) { %>
+  <tr>
+    <td><%= u.username %></td>
+    <td>
+      <form method="post" action="/users/<%= u.id %>" class="row ac">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="text" name="display_name" value="<%= u.display_name %>" maxlength="50" aria-label="이름">
+        <select name="role" aria-label="역할">
+          <% Object.keys(ROLES).forEach(function (k) { %><option value="<%= k %>"<%= k === u.role ? ' selected' : '' %>><%= ROLES[k] %></option><% }) %>
+        </select>
+        <label class="fit checkline"><input class="wauto" type="checkbox" name="active" value="1"<%= u.active ? ' checked' : '' %>> 사용</label>
+        <span class="small muted fit"><%= u.last_login_at ? fmtTime(u.last_login_at) : '로그인 기록 없음' %></span>
+        <input type="password" name="password" placeholder="새 비밀번호 (10자 이상)" autocomplete="new-password" aria-label="새 비밀번호">
+        <button class="small pri fit" type="submit">저장</button>
+      </form>
+    </td>
+  </tr>
+  <% }) %>
+</table></div>
+
+<h2>사용자 추가</h2>
+<form method="post" action="/users" class="card mw560">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label for="nu">아이디 (영문 소문자·숫자 3~32자)</label><input id="nu" name="username" type="text" required autocomplete="off">
+  <label for="nn">이름</label><input id="nn" name="display_name" type="text" required maxlength="50">
+  <label for="nr">역할</label>
+  <select id="nr" name="role"><% Object.keys(ROLES).forEach(function (k) { %><option value="<%= k %>"<%= k === 'staff' ? ' selected' : '' %>><%= ROLES[k] %></option><% }) %></select>
+  <label for="np">초기 비밀번호 (10자 이상)</label><input id="np" name="password" type="password" required minlength="10" autocomplete="new-password">
+  <p class="mt16"><button class="pri" type="submit">추가</button></p>
+</form>
+<%- include('partials/foot') %>

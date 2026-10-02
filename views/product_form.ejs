@@ -1,0 +1,29 @@
+<%- include('partials/head') %>
+<h1><%= isNew ? '상품 등록' : '상품 수정' %></h1>
+<% if (typeof error !== 'undefined' && error) { %><div class="flash err" role="alert"><%= error %></div><% } %>
+<form method="post" action="<%= isNew ? '/products' : '/products/' + p.id %>" class="card mw640">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label for="barcode">바코드 (EAN-13)</label>
+  <input id="barcode" name="barcode" type="text" value="<%= p.barcode || '' %>" required maxlength="32" inputmode="numeric" autocomplete="off"<%= isNew ? ' autofocus' : '' %>>
+  <label for="sku_code">상품코드 (비우면 바코드와 같게)</label>
+  <input id="sku_code" name="sku_code" type="text" value="<%= p.sku_code && p.sku_code !== p.barcode ? p.sku_code : '' %>" maxlength="64" autocomplete="off">
+  <label for="name">상품명</label>
+  <input id="name" name="name" type="text" value="<%= p.name || '' %>" required maxlength="200">
+  <div class="row">
+    <div><label for="option_name">옵션</label><input id="option_name" name="option_name" type="text" value="<%= p.option_name || '' %>" maxlength="100"></div>
+    <div><label for="category">분류</label><input id="category" name="category" type="text" value="<%= p.category || '' %>" maxlength="100"></div>
+  </div>
+  <div class="row">
+    <div><label for="price">판매가 (원)</label><input id="price" name="price" type="text" inputmode="numeric" value="<%= p.price === null || p.price === undefined ? '' : p.price %>"></div>
+    <div><label for="safety_stock">안전재고</label><input id="safety_stock" name="safety_stock" type="number" min="0" value="<%= p.safety_stock || 0 %>"></div>
+  </div>
+  <div class="checks mt12">
+    <label><input type="checkbox" name="tracked" value="1"<%= p.tracked ? ' checked' : '' %>> 재고 수량 관리</label>
+    <% if (!isNew) { %><label><input type="checkbox" name="active" value="1"<%= p.active ? ' checked' : '' %>> 사용 중</label><% } %>
+  </div>
+  <p class="actions mt16">
+    <button class="pri" type="submit">저장</button>
+    <a class="btn" href="<%= isNew ? '/products' : '/products/' + p.id %>">취소</a>
+  </p>
+</form>
+<%- include('partials/foot') %>

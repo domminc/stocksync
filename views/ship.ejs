@@ -1,0 +1,22 @@
+<%- include('partials/head') %>
+<h1>온라인 출고 스캔</h1>
+<p class="muted">포장할 상품의 바코드를 스캔하면 그 상품의 <strong>가장 오래된 미출고 주문 1건</strong>이 출고확정되고 재고가 차감됩니다. (출고 가능한 미출고 주문 <%= n(pending) %>건)</p>
+
+<form method="post" action="/orders/ship/scan" class="scanbar out" autocomplete="off">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label for="code" class="small muted mt0">바코드 스캔</label>
+  <input id="code" name="code" type="text" data-scan-input inputmode="numeric" autocomplete="off" aria-label="바코드 스캔">
+  <div class="hint">여러 개를 주문한 한 줄(수량 2 이상)은 한 번 스캔으로 그 줄 전체가 출고확정됩니다. 재고가 부족하면 오류음이 나고 아무것도 바뀌지 않습니다.</div>
+</form>
+
+<h2>내가 최근 출고확정한 내역</h2>
+<% if (!recent.length) { %><p class="muted">아직 없습니다.</p><% } else { %>
+<div class="table-wrap"><table>
+  <tr><th>시각</th><th>상품</th><th class="num">수량</th><th class="num">남은 재고</th><th>주문</th></tr>
+  <% recent.forEach(function (r) { %>
+  <tr><td class="small"><%= fmtTime(r.created_at) %></td><td><%= r.name %> <span class="muted small"><%= r.option_name %></span></td>
+    <td class="num"><%= -r.qty_delta %></td><td class="num"><%= n(r.qty_after) %></td><td class="small"><%= r.reason %></td></tr>
+  <% }) %>
+</table></div>
+<% } %>
+<%- include('partials/foot') %>

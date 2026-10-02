@@ -1,0 +1,15 @@
+<%- include('partials/head') %>
+<h1><%= heading %></h1>
+<div class="card">
+  <ul class="helplist">
+    <% help.forEach(function (h) { %><li><%= h %></li><% }) %>
+  </ul>
+  <p><a class="btn small" href="<%= templateUrl %>">양식(CSV) 내려받기</a></p>
+</div>
+<form class="card" data-upload="<%= kind %>" data-url="<%= url %>" data-csrf="<%= csrf %>">
+  <label for="file">CSV 파일</label>
+  <input id="file" type="file" accept=".csv,.txt,text/csv" required>
+  <p class="mt14"><button class="pri" type="submit">가져오기</button></p>
+</form>
+<div id="result" aria-live="polite"></div>
+<%- include('partials/foot') %>

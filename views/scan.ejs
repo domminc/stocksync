@@ -1,0 +1,53 @@
+<%- include('partials/head') %>
+<div class="row ac">
+  <div><h1><%= m.label %> 스캔 <span class="chip <%= s.mode === 'in' ? 'ok' : 'low' %>"><%= m.label %></span></h1>
+    <p class="muted"><%= s.mode === 'in' ? '들어온 상품의 바코드를 차례로 스캔한 뒤 “입고 확정”을 누르세요.' : '매장에서 판매·출고한 상품의 바코드를 스캔한 뒤 “출고 확정”을 누르세요.' %> 확정 전에는 재고가 바뀌지 않습니다.</p></div>
+</div>
+
+<form method="post" action="/scan/<%= s.id %>/code" class="scanbar <%= s.mode %>" autocomplete="off">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label for="code" class="small muted mt0">바코드 (스캐너로 읽으면 자동 입력되고 Enter 로 등록됩니다)</label>
+  <input id="code" name="code" type="text" data-scan-input inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="바코드 스캔">
+  <div class="hint">같은 상품을 다시 스캔하면 수량이 1씩 늘어납니다. 등록되지 않은 바코드는 오류음이 납니다.</div>
+</form>
+
+<% if (!lines.length) { %>
+  <p class="muted">아직 스캔한 상품이 없습니다.</p>
+<% } else { %>
+<div class="table-wrap"><table class="compact">
+  <tr><th>상품</th><th class="hide-sm">바코드</th><th class="num">현재 재고</th><th class="num">스캔 수량</th><th></th></tr>
+  <% lines.forEach(function (l) { var short = s.mode === 'out' && l.qty > l.stock; %>
+  <tr<%= short ? ' class=risk' : '' %>>
+    <td><%= l.name %><% if (l.option_name) { %> <span class="muted small"><%= l.option_name %></span><% } %>
+      <% if (short) { %><div><span class="chip err">재고 부족</span></div><% } %></td>
+    <td class="small hide-sm"><%= l.barcode %></td>
+    <td class="num"><%= n(l.stock) %></td>
+    <td class="num">
+      <form method="post" action="/scan/<%= s.id %>/line/<%= l.id %>" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input class="qty-input" type="number" name="qty" min="0" max="100000" value="<%= l.qty %>" aria-label="수량">
+        <button class="small" type="submit">변경</button>
+      </form>
+    </td>
+    <td>
+      <form method="post" action="/scan/<%= s.id %>/line/<%= l.id %>" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="qty" value="0">
+        <button class="small danger" type="submit">삭제</button>
+      </form>
+    </td>
+  </tr>
+  <% }) %>
+</table></div>
+
+<form method="post" action="/scan/<%= s.id %>/confirm" class="sticky-confirm" data-confirm="<%= lines.length %>품목 <%= totalQty %>개를 <%= m.label %> 확정합니다. 확정하면 재고가 바뀝니다.">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <strong><%= lines.length %>품목 · <%= n(totalQty) %>개</strong>
+  <input class="f1w" type="text" name="note" maxlength="200" placeholder="메모 (선택)" aria-label="메모">
+  <button class="pri" type="submit"><%= m.label %> 확정</button>
+</form>
+<form method="post" action="/scan/<%= s.id %>/discard" data-confirm="스캔한 내용을 모두 지웁니다.">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <button class="small danger" type="submit">작업 비우기</button>
+</form>
+<% } %>
+<%- include('partials/foot') %>

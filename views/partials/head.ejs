@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title ? title + ' · ' : '' %>StockSync</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body<% if (msg) { %> data-beep="<%= msgType === 'err' ? 'err' : 'ok' %>"<% } %>>
+<% if (user) { %>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">StockSync</div>
+    <div class="brand-sub">통합 재고관리</div>
+    <% nav.forEach(function (g) { %>
+      <div class="nav-group"><%= g.group %></div>
+      <% g.items.forEach(function (i) { %>
+        <a href="<%= i.href %>"<% if (i.active) { %> class="active" aria-current="page"<% } %>><%= i.label %></a>
+      <% }) %>
+    <% }) %>
+  </aside>
+  <div class="main-wrap">
+    <header class="topbar">
+      <span class="small"><strong><%= user.displayName %></strong> · <span class="chip"><%= ROLES[user.role] %></span></span>
+      <a class="small" href="/password">비밀번호 변경</a>
+      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" type="submit">로그아웃</button></form>
+    </header>
+    <main class="main">
+<% } else { %>
+<main class="auth">
+<% } %>
+<% if (msg) { %><div class="flash <%= msgType %>" role="status"><%= msg %></div><% } %>

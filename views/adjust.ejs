@@ -1,0 +1,32 @@
+<%- include('partials/head') %>
+<h1>재고 조정</h1>
+<p class="muted">실제로 센 수량에 시스템 재고를 맞춥니다. 조정 내용은 사유와 함께 재고 원장에 남습니다.</p>
+
+<form method="get" action="/adjust" class="scanbar">
+  <label for="code" class="small muted mt0">조정할 상품의 바코드 또는 상품코드</label>
+  <input id="code" name="code" type="text" value="<%= code %>" data-scan-input inputmode="numeric" autocomplete="off" aria-label="바코드">
+</form>
+
+<% if (notFound) { %><div class="flash err">등록된 상품을 찾을 수 없습니다: <%= code %></div><% } %>
+
+<% if (p) { %>
+<div class="card mw560">
+  <h2 class="mt0"><%= p.name %> <span class="muted small"><%= p.option_name %></span></h2>
+  <p class="muted"><%= p.barcode %></p>
+  <% if (!p.tracked) { %>
+    <div class="notice">재고 수량을 관리하지 않는 상품입니다. 상품 수정에서 “재고 수량 관리”를 켜야 조정할 수 있습니다.</div>
+  <% } else { %>
+  <p>현재 시스템 재고: <strong><%= n(inv.qty) %>개</strong> <span class="muted">(보류 <%= n(inv.hold) %>개 별도)</span></p>
+  <form method="post" action="/adjust" data-confirm="재고를 실사 수량으로 조정합니다. 계속할까요?">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input type="hidden" name="product_id" value="<%= p.id %>">
+    <label for="counted">실제로 센 수량</label>
+    <input id="counted" name="counted" type="number" min="0" required value="<%= inv.qty %>">
+    <label for="reason">조정 사유 (필수)</label>
+    <input id="reason" name="reason" type="text" maxlength="200" required placeholder="예: 실사 결과 / 파손 / 분실">
+    <p class="mt16"><button class="pri" type="submit">조정하기</button></p>
+  </form>
+  <% } %>
+</div>
+<% } %>
+<%- include('partials/foot') %>

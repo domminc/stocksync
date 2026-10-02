@@ -1,0 +1,41 @@
+<%- include('partials/head') %>
+<h1>대시보드</h1>
+<p class="muted">매장·온라인 통합 재고 현황 (재고는 출고확정 시 차감됩니다)</p>
+
+<% if (stats.productCount === 0) { %>
+  <div class="notice">등록된 상품이 없습니다.
+    <% if (can('product.import')) { %><a href="/products/import">상품 가져오기</a>로 CSV를 올리거나<% } %>
+    <% if (can('product.write')) { %> <a href="/products/new">상품을 직접 등록</a>하세요.<% } %></div>
+<% } %>
+
+<div class="cards">
+  <a class="stat" href="/products"><div class="label">판매 가능 재고</div><div class="value"><%= n(stats.totalQty) %></div><div class="sub">관리 상품 <%= n(stats.trackedCount) %>개 / 전체 <%= n(stats.productCount) %>개</div></a>
+  <a class="stat" href="/products?filter=hold"><div class="label">보류 재고</div><div class="value"><%= n(stats.totalHold) %></div><div class="sub">불량·검수 대기</div></a>
+  <a class="stat" href="/orders?status=pending"><div class="label">미출고 주문</div><div class="value"><%= n(stats.pendingQty) %></div><div class="sub"><%= n(stats.pendingLines) %>건 · 아직 재고에서 빠지지 않음</div></a>
+  <a class="stat <%= stats.riskCount ? 'bad' : '' %>" href="/products?filter=risk"><div class="label">오버셀 위험 상품</div><div class="value"><%= n(stats.riskCount) %></div><div class="sub">미출고 주문 &gt; 판매 가능 재고</div></a>
+  <a class="stat <%= stats.outCount ? 'bad' : '' %>" href="/products?filter=out"><div class="label">품절 상품</div><div class="value"><%= n(stats.outCount) %></div><div class="sub">재고관리 대상 중 0개</div></a>
+  <a class="stat <%= stats.lowCount ? 'warn' : '' %>" href="/products?filter=low"><div class="label">재고 부족</div><div class="value"><%= n(stats.lowCount) %></div><div class="sub">안전재고 이하</div></a>
+  <% if (stats.unmatchedCount) { %><a class="stat warn" href="/orders?status=unmatched"><div class="label">상품 미매칭 주문</div><div class="value"><%= n(stats.unmatchedCount) %></div><div class="sub">출고하려면 상품 연결 필요</div></a><% } %>
+  <% if (stats.needsReturnCount) { %><a class="stat bad" href="/orders?status=needs_return"><div class="label">반품 처리 필요</div><div class="value"><%= n(stats.needsReturnCount) %></div><div class="sub">출고 후 취소·반품된 주문</div></a><% } %>
+</div>
+
+<h2>최근 재고 변동</h2>
+<% if (stats.recent.length === 0) { %>
+  <p class="muted">아직 재고 변동이 없습니다.</p>
+<% } else { %>
+<div class="table-wrap"><table>
+  <tr><th>시각</th><th>구분</th><th>상품</th><th class="num">증감</th><th class="num">변동 후</th><th>처리자</th></tr>
+  <% stats.recent.forEach(function (r) { %>
+  <tr>
+    <td class="small"><%= fmtTime(r.created_at) %></td>
+    <td><%= EVENT_LABEL[r.event_type] || r.event_type %></td>
+    <td><a href="/products/<%= r.product_id %>"><%= r.name %></a><% if (r.option_name) { %> <span class="muted small"><%= r.option_name %></span><% } %></td>
+    <td class="num"><%= (r.qty_delta > 0 ? '+' : '') + r.qty_delta %><% if (r.hold_delta) { %> <span class="muted small">(보류 <%= (r.hold_delta > 0 ? '+' : '') + r.hold_delta %>)</span><% } %></td>
+    <td class="num"><%= n(r.qty_after) %></td>
+    <td class="small"><%= r.user_name || '-' %></td>
+  </tr>
+  <% }) %>
+</table></div>
+<p class="small"><a href="/ledger">원장 전체 보기 →</a></p>
+<% } %>
+<%- include('partials/foot') %>
