@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#4f46e5">
 <title><%= title ? title + ' · ' : '' %>StockSync</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="/static/style.css">
-<script src="/static/app.js" defer></script>
+<link rel="stylesheet" href="/static/style.css?v=<%= assetV %>">
+<script src="/static/app.js?v=<%= assetV %>" defer></script>
 </head>
 <body<% if (user) { %> data-ps="<%= pageSize %>"<% } %><% if (msg) { %> data-beep="<%= msgType === 'err' ? 'err' : 'ok' %>"<% } %>>
 <% if (user) { %>

@@ -1,5 +1,6 @@
 import express from 'express';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadSession, minPasswordLength } from './lib/auth.js';
@@ -18,6 +19,15 @@ import { ean13Svg } from './lib/barcodes.js';
 import { pageSizeFor } from './lib/pagesize.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+// 화면 파일(CSS/JS)이 바뀌면 주소의 ?v= 값도 바뀌어, 브라우저가 예전 파일을 캐시로 쓰지 않게 한다.
+function assetVersion() {
+  const h = crypto.createHash('sha1');
+  for (const f of ['style.css', 'app.js']) {
+    try { h.update(fs.readFileSync(path.join(root, 'public', f))); } catch { /* 없으면 건너뜀 */ }
+  }
+  return h.digest('hex').slice(0, 10);
+}
 
 const NAV = [
   { group: '현황', items: [
@@ -88,7 +98,10 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
     if (secureCookie) res.set('Strict-Transport-Security', 'max-age=15552000');
     next();
   });
-  app.use('/static', express.static(path.join(root, 'public'), { maxAge: '1h', setHeaders: (res) => res.set('Cache-Control', 'public, max-age=3600') }));
+  const assetV = assetVersion();
+  app.use('/static', express.static(path.join(root, 'public'), {
+    setHeaders: (res, _file) => res.set('Cache-Control', res.req?.query?.v ? 'public, max-age=31536000, immutable' : 'no-cache'),
+  }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
   app.use((req, res, next) => {
@@ -103,6 +116,7 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
       ean13Svg, pwMin: minPasswordLength(), pageSize: pageSizeFor(req), user: req.user, csrf: req.csrf, ROLES, EVENT_LABEL, STATUS_LABEL, stockStatus, fmtTime,
       can: (perm) => Boolean(req.user && can(req.user.role, perm)),
       n: (v) => Number(v ?? 0).toLocaleString('ko-KR'),
+      assetV,
       msg, msgType: req.query.t === 'err' ? 'err' : 'ok',
       title: '', currentPath: req.path,
       tabs: TABS.filter((t) => req.user && can(req.user.role, t.perm)).map((t) => ({
