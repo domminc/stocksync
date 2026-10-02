@@ -47,6 +47,23 @@ HTTPS 운영 설정(`SECURE_COOKIE=1`, `TRUST_PROXY=1`)이 켜져 있으면 로�
 5. 비밀번호 초기화(관리자 본인이 잠긴 경우): `docker exec -it stocksync npm run reset-password -- jiny`
 6. 로그인 잠금은 IP 기준 항목이 있는데, Cloudflare→Traefik 뒤에서는 접속자 IP 가 Cloudflare 주소로 보일 수 있습니다. 사용자(계정) 기준 잠금은 그대로 동작합니다.
 
+### 0-C. 자동 배포 (GitHub Actions → Hostinger API)
+
+`main` 에 push 하면 테스트(`npm test`)를 통과한 뒤 `scripts/deploy-hostinger.mjs` 가 Hostinger 의 Docker Manager 에 `stocksync` 프로젝트를 만들거나 갱신합니다. 컨테이너가 해당 커밋의 소스를 GitHub 에서 직접 내려받아 실행하므로 이미지 저장소가 필요 없습니다(저장소가 공개일 때). 기존 `baseball-dashboard` 와 같은 VPS·Traefik 을 쓰되 프로젝트·볼륨·라우터 이름이 달라 서로 영향을 주지 않습니다.
+
+**GitHub 저장소 설정 (Settings → Secrets and variables → Actions)**
+
+| 구분 | 이름 | 값 |
+|---|---|---|
+| Secret | `HOSTINGER_API_KEY` | Hostinger API 토큰 (기존 baseball 저장소와 같은 값) |
+| Secret | `STOCKSYNC_ADMIN_PASSWORD` | 첫 관리자(jiny) 비밀번호. 첫 로그인 뒤 앱에서 바꾸고 이 Secret 은 삭제 |
+| Variable | `STOCKSYNC_PASSWORD_MIN_LENGTH` | 비밀번호가 6자면 `6` (미설정 시 10) |
+
+- 비밀번호는 코드·로그에 남지 않고, 계정이 이미 있으면 무시됩니다.
+- 도메인은 기본 `jejubaseball.com` 입니다. 바꾸려면 워크플로 env 에 `STOCKSYNC_DOMAIN` 을 추가하세요.
+- 배포 후 DNS(`@` A 레코드 → VPS IP, 처음엔 회색 구름)가 준비돼 있어야 공개 주소 확인이 통과합니다. 안 돼도 배포 자체는 완료되고 경고만 표시됩니다.
+- 데이터는 Docker 볼륨 `stocksync_data` 에 있어 재배포해도 유지됩니다. 백업은 0-B 의 방법을 따르세요.
+
 ## 1. 서버에 올리기 (수동 설치 설명)
 
 ```sh

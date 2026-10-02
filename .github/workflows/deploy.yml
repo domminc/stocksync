@@ -1,0 +1,39 @@
+name: Deploy to Hostinger
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stocksync-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Deploy to Hostinger (Docker + Traefik)
+        env:
+          HOSTINGER_API_KEY: ${{ secrets.HOSTINGER_API_KEY }}
+          STOCKSYNC_ADMIN_PASSWORD: ${{ secrets.STOCKSYNC_ADMIN_PASSWORD }}
+          STOCKSYNC_PASSWORD_MIN_LENGTH: ${{ vars.STOCKSYNC_PASSWORD_MIN_LENGTH }}
+        run: node scripts/deploy-hostinger.mjs
