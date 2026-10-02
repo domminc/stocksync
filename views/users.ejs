@@ -49,11 +49,20 @@
       <button type="submit">잠금 해제</button>
     </form>
     <% } %>
+    <details class="inline-details danger-zone">
+      <summary class="btn danger">계정 삭제</summary>
+      <form method="post" action="/users/<%= u.id %>/delete" class="row ac mt8" autocomplete="off">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="text" name="confirm_username" placeholder="삭제하려면 아이디 입력: <%= u.username %>" required autocomplete="off" autocapitalize="none" aria-label="삭제 확인용 아이디">
+        <button class="danger fit" type="submit">영구 삭제</button>
+      </form>
+      <p class="small muted mt8">삭제하면 로그인할 수 없고 목록에서 사라지며 아이디를 다시 쓸 수 있습니다. 이 사람이 남긴 재고 기록의 처리자 이름은 보존됩니다. 되돌릴 수 없습니다. 잠시 막으려면 “사용” 체크를 끄세요.</p>
+    </details>
     <details class="inline-details">
       <summary class="btn">비밀번호 직접 지정</summary>
       <form method="post" action="/users/<%= u.id %>/password" class="row ac mt8" autocomplete="off">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input type="password" name="password" placeholder="새 비밀번호 (10자 이상)" minlength="10" required autocomplete="new-password" aria-label="새 비밀번호">
+        <input type="password" name="password" placeholder="새 비밀번호 (<%= pwMin %>자 이상)" minlength="<%= pwMin %>" required autocomplete="new-password" aria-label="새 비밀번호">
         <button class="fit" type="submit">지정</button>
       </form>
     </details>
@@ -71,7 +80,7 @@
   <label for="nn">이름</label><input id="nn" name="display_name" type="text" required maxlength="50">
   <label for="nr">역할</label>
   <select id="nr" name="role"><% Object.keys(ROLES).forEach(function (k) { %><option value="<%= k %>"<%= k === 'staff' ? ' selected' : '' %>><%= ROLES[k] %></option><% }) %></select>
-  <label for="np">임시 비밀번호 (10자 이상)</label><input id="np" name="password" type="password" required minlength="10" autocomplete="new-password">
+  <label for="np">임시 비밀번호 (<%= pwMin %>자 이상)</label><input id="np" name="password" type="password" required minlength="<%= pwMin %>" autocomplete="new-password">
   <p class="small muted mt8">임시 비밀번호를 본인에게 직접 전달하세요. 본인이 처음 로그인하면 새 비밀번호를 정하게 됩니다.</p>
   <p class="mt16"><button class="pri" type="submit">추가</button></p>
 </form>

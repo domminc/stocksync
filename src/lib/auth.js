@@ -6,9 +6,19 @@ const LOCK_WINDOW_MIN = 15;
 const MAX_FAILS_PER_USER = 5;
 const MAX_FAILS_PER_IP = 30;
 
-/** 비밀번호 규칙: 10자 이상, 아이디를 포함하지 않음, (변경 시) 현재 비밀번호와 달라야 함 */
+/**
+ * 비밀번호 최소 길이. 기본 10자. 서버 설정 PASSWORD_MIN_LENGTH 로 바꿀 수 있다 (6~64).
+ * 짧게 쓸수록 추측하기 쉬워지므로 인터넷에 공개된 서버에서는 기본값 이상을 권장한다.
+ */
+export function minPasswordLength() {
+  const n = Number.parseInt(process.env.PASSWORD_MIN_LENGTH ?? '', 10);
+  return Number.isInteger(n) ? Math.min(Math.max(n, 6), 64) : 10;
+}
+
+/** 비밀번호 규칙: 최소 길이 이상, 아이디를 포함하지 않음, (변경 시) 현재 비밀번호와 달라야 함 */
 export function validatePassword(pw, { username = '', current = null } = {}) {
-  if (typeof pw !== 'string' || pw.length < 10) return '비밀번호는 10자 이상이어야 합니다.';
+  const min = minPasswordLength();
+  if (typeof pw !== 'string' || pw.length < min) return `비밀번호는 ${min}자 이상이어야 합니다.`;
   if (pw.length > 200) return '비밀번호가 너무 깁니다.';
   const u = String(username).toLowerCase();
   if (u.length >= 3 && pw.toLowerCase().includes(u)) return '비밀번호에 아이디를 포함할 수 없습니다.';

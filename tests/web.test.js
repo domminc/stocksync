@@ -5,7 +5,7 @@ import { createApp } from '../src/app.js';
 import { applyStock } from '../src/lib/inventory.js';
 import { importOrders } from '../src/lib/orders.js';
 import { makeNameKey } from '../src/lib/namekey.js';
-import { createUser } from '../src/lib/auth.js';
+import { createUser, minPasswordLength, validatePassword } from '../src/lib/auth.js';
 
 let db, server, base;
 
@@ -561,3 +561,98 @@ test('계정 관리: 화면에 계정 목록·현황·활동 기록이 보이고
 function createUserForWeb(username, role, password) {
   return createUser(db, { username, displayName: `${username} 사용자`, password, role });
 }
+
+// ---------- 비밀번호 최소 길이 설정 / 계정 삭제 ----------
+test('서버 설정 PASSWORD_MIN_LENGTH: 기본 10자, 6~64 범위, 화면·검사에 모두 반영', async () => {
+  const prev = process.env.PASSWORD_MIN_LENGTH;
+  try {
+    delete process.env.PASSWORD_MIN_LENGTH;
+    assert.equal(minPasswordLength(), 10);
+    assert.match(validatePassword('abc123xy'), /10자/);
+    process.env.PASSWORD_MIN_LENGTH = '6';
+    assert.equal(minPasswordLength(), 6);
+    assert.equal(validatePassword('abc123'), null);
+    assert.match(validatePassword('abc12'), /6자/);
+    process.env.PASSWORD_MIN_LENGTH = '3';
+    assert.equal(minPasswordLength(), 6, '너무 짧게는 설정할 수 없다');
+    process.env.PASSWORD_MIN_LENGTH = '500';
+    assert.equal(minPasswordLength(), 64);
+    process.env.PASSWORD_MIN_LENGTH = 'abc';
+    assert.equal(minPasswordLength(), 10);
+
+    process.env.PASSWORD_MIN_LENGTH = '6';
+    createUserForWeb('shortpw', 'staff', 'old-password-12345');
+    const u = new Client();
+    assert.equal((await u.login('shortpw', 'old-password-12345')).status, 302);
+    const page = await (await u.get('/password')).text();
+    assert.match(page, /6자 이상/);
+    assert.match(page, /minlength="6"/);
+    assert.equal((await u.post('/password', { current: 'old-password-12345', next: 'zq9x7k', confirm: 'zq9x7k' })).status, 302);
+    assert.equal((await new Client().login('shortpw', 'zq9x7k')).status, 302);
+    assert.equal((await new Client().login('shortpw', 'old-password-12345')).status, 401);
+    // 아이디 포함 금지는 길이와 무관하게 유지
+    assert.match(validatePassword('shortpw1', { username: 'shortpw' }), /아이디/);
+  } finally {
+    if (prev === undefined) delete process.env.PASSWORD_MIN_LENGTH; else process.env.PASSWORD_MIN_LENGTH = prev;
+  }
+});
+
+test('계정 삭제: 확인 아이디 필수, 로그인 불가, 목록에서 사라지고 아이디 재사용 가능, 기록은 보존', async () => {
+  const gone = createUserForWeb('leaver', 'staff', 'old-password-12345');
+  const admin = await as('admin');
+  // 삭제 전에 이 사람이 한 일을 남겨 둔다
+  const pid = addProduct(db, 3001);
+  applyStock(db, { productId: pid, qtyDelta: 4, eventType: 'IN', reason: '퇴사 전 입고', userId: gone });
+  const leaver = new Client();
+  assert.equal((await leaver.login('leaver', 'old-password-12345')).status, 302);
+  const sid = /action="\/scan\/(\d+)\/code"/.exec(await (await leaver.get('/scan/in')).text())[1];
+  const stillLoggedIn = leaver.cookie;
+
+  let r = await admin.post(`/users/${gone}/delete`, { confirm_username: 'wrong' });
+  assert.match(flashOf(r), /아이디를 정확히/);
+  assert.ok(db.prepare('SELECT 1 FROM users WHERE id = ? AND deleted_at IS NULL').get(gone), '확인 실패 시 그대로');
+  r = await admin.post(`/users/${gone}/delete`, {});
+  assert.match(flashOf(r), /아이디를 정확히/);
+
+  r = await admin.post(`/users/${gone}/delete`, { confirm_username: ' LEAVER ' });
+  assert.match(flashOf(r), /삭제했습니다/);
+
+  assert.equal((await new Client().login('leaver', 'old-password-12345')).status, 401, '삭제된 계정은 로그인 불가');
+  const res = await fetch(`${base}/products`, { redirect: 'manual', headers: { cookie: stillLoggedIn } });
+  assert.equal(res.status, 302, '로그인 중이던 기기도 끊김');
+  assert.equal(db.prepare('SELECT status FROM scan_sessions WHERE id = ?').get(sid).status, 'discarded');
+
+  const list = await (await admin.get('/users')).text();
+  assert.ok(!list.includes('@leaver'), '목록에서 사라짐');
+  assert.match(list, /계정 삭제/, '활동 기록에는 남음');
+  assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action = 'user.delete' AND detail LIKE 'leaver%'").get());
+
+  // 재고 원장의 처리자 이름은 보존
+  const ledger = await (await admin.get('/ledger?q=' + encodeURIComponent(db.prepare('SELECT barcode FROM products WHERE id = ?').get(pid).barcode))).text();
+  assert.match(ledger, /leaver 사용자/);
+
+  // 같은 아이디를 새 사람에게 다시 쓸 수 있다
+  assert.match(flashOf(await admin.post('/users', { username: 'leaver', display_name: '새 직원', role: 'staff', password: 'brand-new-temp-77' })), /계정을 만들었습니다/);
+  // 삭제된 계정은 조작할 수 없다
+  assert.match(flashOf(await admin.post(`/users/${gone}/reset`)), /찾을 수 없습니다/);
+  assert.match(flashOf(await admin.post(`/users/${gone}/delete`, { confirm_username: 'leaver' })), /찾을 수 없습니다/);
+});
+
+test('계정 삭제: 내 계정·마지막 관리자는 삭제 불가, 관리자만 삭제 가능', async () => {
+  const admin = await as('admin');
+  const me = db.prepare("SELECT id FROM users WHERE username = 'admin'").get().id;
+  assert.match(flashOf(await admin.post(`/users/${me}/delete`, { confirm_username: 'admin' })), /내 계정은 삭제할 수 없습니다/);
+  // 관리자가 둘일 때만 다른 관리자를 삭제할 수 있다 → 둘째 관리자 만들고 삭제는 되지만, 첫째는 마지막이 되어 보호
+  const second = createUserForWeb('admin2', 'admin', 'second-admin-secret-1');
+  const a2 = new Client(); assert.equal((await a2.login('admin2', 'second-admin-secret-1')).status, 302);
+  assert.match(flashOf(await a2.post(`/users/${me}/delete`, { confirm_username: 'admin' })), /삭제했습니다/, '관리자가 둘이면 서로 삭제 가능');
+  const last = db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND active = 1 AND deleted_at IS NULL").get().n;
+  assert.ok(last >= 1);
+  // 관리자 이외는 불가
+  const other = db.prepare("SELECT id FROM users WHERE username = 'viewer'").get().id;
+  for (const role of ['manager', 'staff', 'online', 'viewer']) {
+    const c = await as(role);
+    assert.equal((await c.post(`/users/${other}/delete`, { confirm_username: 'viewer' })).status, 403, role);
+  }
+  assert.ok(second > 0);
+});

@@ -3,7 +3,7 @@
 //   비밀번호는 안전을 위해 명령줄이 아니라 프롬프트(또는 STOCKSYNC_PASSWORD 환경변수)로 받는다.
 import readline from 'node:readline';
 import { openDb } from '../src/db.js';
-import { createUser, validatePassword } from '../src/lib/auth.js';
+import { createUser, validatePassword, minPasswordLength } from '../src/lib/auth.js';
 import { ROLES } from '../src/lib/permissions.js';
 
 const [username, displayName, role = 'admin'] = process.argv.slice(2);
@@ -20,7 +20,7 @@ function askHidden(question) {
   });
 }
 
-const password = process.env.STOCKSYNC_PASSWORD ?? await askHidden('비밀번호 (10자 이상): ');
+const password = process.env.STOCKSYNC_PASSWORD ?? await askHidden(`비밀번호 (${minPasswordLength()}자 이상): `);
 const problem = validatePassword(password);
 if (problem) { console.error(problem); process.exit(1); }
 

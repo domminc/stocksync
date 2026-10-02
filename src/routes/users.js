@@ -3,6 +3,7 @@ import {
   createUser, setPassword, validatePassword, generateTempPassword, destroyUserSessions, clearLoginFailures, lockedUsernames, audit,
 } from '../lib/auth.js';
 import { nowIso } from '../lib/time.js';
+import { tx } from '../db.js';
 
 const int = (v, d) => {
   const n = Number.parseInt(String(v ?? ''), 10);
@@ -11,17 +12,17 @@ const int = (v, d) => {
 
 const ACTION_LABEL = {
   'user.create': '계정 생성', 'user.update': '계정 수정', 'user.reset': '비밀번호 초기화',
-  'user.password': '비밀번호 지정', 'user.unlock': '잠금 해제', 'password.change': '비밀번호 변경(본인)',
+  'user.password': '비밀번호 지정', 'user.delete': '계정 삭제', 'user.unlock': '잠금 해제', 'password.change': '비밀번호 변경(본인)',
 };
 
 export function registerUsers(app, { db, guard }) {
   const activeAdmins = () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND active = 1").get().n;
-  const find = (id) => db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  const find = (id) => db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL').get(id);
 
   app.get('/users', guard('user.manage'), (req, res) => {
     const locked = lockedUsernames(db);
     const users = db.prepare(
-      'SELECT id, username, display_name, role, active, must_change_password, created_at, last_login_at, password_changed_at FROM users ORDER BY id',
+      'SELECT id, username, display_name, role, active, must_change_password, created_at, last_login_at, password_changed_at FROM users WHERE deleted_at IS NULL ORDER BY id',
     ).all().map((u) => ({ ...u, locked: locked.has(u.username) }));
     const history = db.prepare(
       `SELECT a.action, a.detail, a.at, u.display_name AS actor
@@ -96,6 +97,30 @@ export function registerUsers(app, { db, guard }) {
     clearLoginFailures(db, target.username);
     audit(db, req.user.id, 'user.password', target.username);
     res.redirectWith('/users', `${target.display_name}의 비밀번호를 지정했습니다. 다음 로그인 때 본인이 새로 정하게 됩니다.`);
+  });
+
+  // 계정 삭제: 재고 원장·기록에 이름이 남아야 하므로 행은 보존하고, 로그인 불가로 만든 뒤 목록에서 숨기며 아이디를 비운다.
+  app.post('/users/:id/delete', guard('user.manage'), (req, res) => {
+    const id = int(req.params.id, 0);
+    const target = find(id);
+    if (!target) return res.redirectWith('/users', '사용자를 찾을 수 없습니다.', 'err');
+    if (id === req.user.id) return res.redirectWith('/users', '내 계정은 삭제할 수 없습니다.', 'err');
+    if (String(req.body.confirm_username ?? '').trim().toLowerCase() !== target.username) {
+      return res.redirectWith('/users', '삭제하려면 확인 칸에 계정 아이디를 정확히 입력하세요.', 'err');
+    }
+    if (target.role === 'admin' && target.active === 1 && activeAdmins() <= 1) {
+      return res.redirectWith('/users', '마지막 관리자는 삭제할 수 없습니다.', 'err');
+    }
+    tx(db, () => {
+      const now = nowIso();
+      db.prepare("UPDATE users SET username = ?, active = 0, password_hash = '!deleted', must_change_password = 0, deleted_at = ?, updated_at = ? WHERE id = ?")
+        .run(`~deleted~${id}~${target.username}`, now, now, id);
+      destroyUserSessions(db, id);
+      clearLoginFailures(db, target.username);
+      db.prepare("UPDATE scan_sessions SET status = 'discarded' WHERE user_id = ? AND status = 'open'").run(id);
+    });
+    audit(db, req.user.id, 'user.delete', `${target.username} (${target.display_name})`);
+    res.redirectWith('/users', `${target.display_name} 계정을 삭제했습니다. 이 사람이 남긴 재고 기록은 이름과 함께 그대로 보존됩니다.`);
   });
 
   app.post('/users/:id/unlock', guard('user.manage'), (req, res) => {

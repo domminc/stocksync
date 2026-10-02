@@ -286,3 +286,4 @@ button, .btn { white-space: nowrap; }
   .inline-details { width: 100%; }
   .inline-details > summary { display: block; text-align: center; }
 }
+.danger-zone[open] > summary { margin-bottom: 4px; }

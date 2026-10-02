@@ -2,7 +2,7 @@ import express from 'express';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadSession } from './lib/auth.js';
+import { loadSession, minPasswordLength } from './lib/auth.js';
 import { can, ROLES } from './lib/permissions.js';
 import { fmtTime } from './lib/time.js';
 import { StockError, EVENT_LABEL, STATUS_LABEL, stockStatus } from './lib/inventory.js';
@@ -88,7 +88,7 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
 
     const msg = typeof req.query.msg === 'string' ? req.query.msg.slice(0, 300) : '';
     Object.assign(res.locals, {
-      ean13Svg, pageSize: pageSizeFor(req), user: req.user, csrf: req.csrf, ROLES, EVENT_LABEL, STATUS_LABEL, stockStatus, fmtTime,
+      ean13Svg, pwMin: minPasswordLength(), pageSize: pageSizeFor(req), user: req.user, csrf: req.csrf, ROLES, EVENT_LABEL, STATUS_LABEL, stockStatus, fmtTime,
       can: (perm) => Boolean(req.user && can(req.user.role, perm)),
       n: (v) => Number(v ?? 0).toLocaleString('ko-KR'),
       msg, msgType: req.query.t === 'err' ? 'err' : 'ok',

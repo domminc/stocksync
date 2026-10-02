@@ -7,7 +7,9 @@
 sudo useradd -r -m -s /usr/sbin/nologin stocksync
 sudo -u stocksync git clone <저장소 주소> /opt/stocksync
 cd /opt/stocksync && sudo -u stocksync npm ci --omit=dev
-sudo -u stocksync DB_PATH=/var/lib/stocksync/stocksync.db npm run create-admin -- jiny "지니"
+# 비밀번호는 프롬프트에 직접 입력합니다 (저장소·명령줄 기록에 남기지 않기 위해)
+# 10자보다 짧은 비밀번호를 쓰려면 PASSWORD_MIN_LENGTH 를 함께 지정하고, 서비스 설정에도 같은 값을 넣으세요(아래 Environment).
+sudo -u stocksync env DB_PATH=/var/lib/stocksync/stocksync.db PASSWORD_MIN_LENGTH=10 npm run create-admin -- jiny "지니"
 ```
 
 `/etc/systemd/system/stocksync.service`
@@ -26,6 +28,7 @@ Environment=PORT=3000
 Environment=DB_PATH=/var/lib/stocksync/stocksync.db
 Environment=SECURE_COOKIE=1
 Environment=TRUST_PROXY=1
+Environment=PASSWORD_MIN_LENGTH=10
 ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning src/server.js
 Restart=on-failure
 StateDirectory=stocksync

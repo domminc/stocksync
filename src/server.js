@@ -21,7 +21,7 @@ if (userCount === 0) {
     createUser(db, { username: username.toLowerCase(), displayName: '관리자', password, role: 'admin' });
     console.log(`[시작] 관리자 계정을 만들었습니다: ${username.toLowerCase()}`);
   } else {
-    console.log('[시작] 사용자가 없습니다. 관리자를 만들려면 `npm run create-admin` 을 실행하거나 ADMIN_USERNAME / ADMIN_PASSWORD(10자 이상)를 설정하세요.');
+    console.log('[시작] 사용자가 없습니다. 관리자를 만들려면 `npm run create-admin` 을 실행하거나 ADMIN_USERNAME / ADMIN_PASSWORD(최소 길이는 PASSWORD_MIN_LENGTH, 기본 10자)를 설정하세요.');
   }
 }
 
