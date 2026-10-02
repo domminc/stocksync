@@ -6,3 +6,4 @@ backups/
 *.db-shm
 .env
 .DS_Store
+responsive-shots/

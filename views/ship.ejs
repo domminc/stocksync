@@ -11,11 +11,11 @@
 
 <h2>내가 최근 출고확정한 내역</h2>
 <% if (!recent.length) { %><p class="muted">아직 없습니다.</p><% } else { %>
-<div class="table-wrap"><table>
-  <tr><th>시각</th><th>상품</th><th class="num">수량</th><th class="num">남은 재고</th><th>주문</th></tr>
+<div class="table-wrap"><table class="stack">
+  <tr class="thead"><th>시각</th><th>상품</th><th class="num">수량</th><th class="num">남은 재고</th><th>주문</th></tr>
   <% recent.forEach(function (r) { %>
-  <tr><td class="small"><%= fmtTime(r.created_at) %></td><td><%= r.name %> <span class="muted small"><%= r.option_name %></span></td>
-    <td class="num"><%= -r.qty_delta %></td><td class="num"><%= n(r.qty_after) %></td><td class="small"><%= r.reason %></td></tr>
+  <tr><td class="small" data-label="시각"><%= fmtTime(r.created_at) %></td><td class="title"><%= r.name %> <span class="muted small"><%= r.option_name %></span></td>
+    <td class="num" data-label="수량"><%= -r.qty_delta %></td><td class="num" data-label="남은 재고"><%= n(r.qty_after) %></td><td class="small" data-label="주문"><%= r.reason %></td></tr>
   <% }) %>
 </table></div>
 <% } %>

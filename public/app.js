@@ -141,3 +141,10 @@
     }
   }
 })();
+
+// 모바일 메뉴 서랍: Esc 로 닫기
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  var t = document.getElementById('nav-toggle');
+  if (t && t.checked) t.checked = false;
+});

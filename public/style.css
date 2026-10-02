@@ -120,19 +120,6 @@ dl.kv dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 #result .report { margin-top: 12px; }
 #result dl.kv { grid-template-columns: 200px 1fr; }
 
-@media (max-width: 860px) {
-  .shell { display: block; }
-  .side { position: static; height: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 10px 10px; }
-  .brand { padding: 0 10px 0 4px; }
-  .brand-sub, .nav-group { display: none; }
-  .side a { padding: 7px 10px; font-size: 14px; }
-  .topbar { padding: 8px 14px; flex-wrap: wrap; }
-  .main { padding: 16px 14px 60px; }
-  dl.kv, #result dl.kv { grid-template-columns: 1fr; }
-  dl.kv dt { margin-top: 6px; }
-  .scanbar input[type=text] { font-size: 22px; }
-}
-
 /* 인라인 style 을 쓰지 않기 위한 보조 클래스 (CSP: style-src 'self') */
 .mt0 { margin-top: 0 !important; }
 .mt8 { margin-top: 8px; }
@@ -155,27 +142,11 @@ dl.kv dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .checkline { margin: 0; display: inline-flex; gap: 6px; align-items: center; }
 .helplist { margin: 0 0 10px; padding-left: 20px; }
 
-/* 모바일: 표는 표 영역 안에서 가로로 밀어 보고, 스캔 표는 핵심 열만 보여준다 */
-@media (max-width: 600px) {
-  table { min-width: 620px; }
-  table.compact { min-width: 0; }
-  .hide-sm { display: none; }
-  th, td { padding: 8px 8px; }
-  .qty-input { width: 64px !important; }
-  .cards { grid-template-columns: repeat(2, 1fr); }
-  .stat .value { font-size: 24px; }
-  .sticky-confirm > * { flex: 1 1 100%; }
-}
-
 button, .btn { white-space: nowrap; }
-@media (max-width: 600px) {
-  .sticky-confirm { position: static; }
-  table.compact td:last-child { padding-left: 0; }
-}
 
 /* 라벨 인쇄 */
 .labels { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.label {
+.labels .label {
   background: #fff; border: 1px dashed #b9bfce; padding: 1.5mm; overflow: hidden;
   display: flex; flex-direction: column; justify-content: space-between; gap: 0.6mm;
   break-inside: avoid; page-break-inside: avoid;
@@ -185,7 +156,7 @@ button, .btn { white-space: nowrap; }
 .size-a4 .label { width: 62mm; height: 32mm; }
 .label-name { font-size: 7.5pt; line-height: 1.15; font-weight: 700; max-height: 2.4em; overflow: hidden; color: #000; }
 .label-opt { font-size: 6.5pt; line-height: 1.1; max-height: 1.2em; overflow: hidden; color: #000; }
-.label .barcode { width: 100%; height: auto; max-height: 62%; flex: 0 1 auto; }
+.labels .label .barcode { width: 100%; height: auto; max-height: 62%; flex: 0 1 auto; }
 .size-40x25 .label-name { font-size: 6.5pt; }
 .label-code { font-size: 10pt; font-weight: 700; letter-spacing: .06em; color: #000; }
 @media print {
@@ -194,9 +165,106 @@ button, .btn { white-space: nowrap; }
   .main { padding: 0; max-width: none; }
   body { background: #fff; }
   .labels { display: block; margin: 0; }
-  .label { border: none; margin: 0; }
+  .labels .label { border: none; margin: 0; }
   .size-50x30 .label, .size-40x25 .label { break-after: page; page-break-after: always; }
   .labels.size-a4 { display: flex; flex-wrap: wrap; gap: 0; }
-  .size-a4 .label { border: 1px solid #ddd; }
+  .labels.size-a4 .label { border: 1px solid #ddd; }
   @page { margin: 0; }
+}
+
+
+/* ===================== 반응형 =====================
+   >900px  : 왼쪽 고정 메뉴 + 본문 (넓은 화면은 본문을 가운데로)
+   ≤900px  : 메뉴는 서랍(☰ 메뉴), 상단 바 고정
+   ≤640px  : 목록 표는 카드로, 입력·버튼은 손가락 크기, 폼은 세로로 쌓기
+   인쇄(라벨)에는 모바일 규칙을 적용하지 않도록 screen 조건을 붙인다. */
+.menu-btn, .scrim, .mbrand, .spacer, .side-user { display: none; }
+.nav-toggle { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.main { margin: 0 auto; }
+@media screen and (min-width: 1500px) { .main { max-width: 1360px; } }
+
+@media screen and (max-width: 900px) {
+  .shell { display: block; }
+  .side {
+    position: fixed; top: 0; left: 0; bottom: 0; width: min(280px, 84vw); height: auto; z-index: 40;
+    transform: translateX(-100%); visibility: hidden;
+    transition: transform .2s ease, visibility 0s linear .2s;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+  .nav-toggle:checked ~ .side { transform: none; visibility: visible; transition: transform .2s ease; box-shadow: 8px 0 30px rgba(0, 0, 0, .35); }
+  .scrim { display: block; position: fixed; inset: 0; background: rgba(10, 14, 30, .5); z-index: 30; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .nav-toggle:checked ~ .scrim { opacity: 1; pointer-events: auto; }
+  .nav-toggle:focus-visible ~ .main-wrap .menu-btn { outline: 3px solid rgba(47, 91, 234, .45); outline-offset: 2px; }
+  .side a { padding: 12px 12px; }
+  .side-user { display: block; margin-top: 18px; padding: 14px 10px 0; border-top: 1px solid rgba(255, 255, 255, .15); font-size: 14px; color: var(--navy-ink); }
+  .side-user > * { margin-bottom: 8px; }
+  .side-user .chip { background: rgba(255, 255, 255, .14); color: #fff; }
+  .side-user form { margin: 0; }
+  .topbar { position: sticky; top: 0; z-index: 20; padding: 8px 14px; gap: 10px; justify-content: flex-start; }
+  .topbar .userinfo { display: none; }
+  .menu-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; font-weight: 600; background: var(--card); cursor: pointer; }
+  .mbrand { display: inline; font-weight: 700; font-size: 17px; }
+  .spacer { display: block; flex: 1; }
+  .main { padding: 16px 14px 70px; }
+  .auth { margin: 6vh auto; }
+}
+
+@media screen and (max-width: 640px) {
+  h1 { font-size: 21px; }
+  h2 { font-size: 17px; }
+
+  /* 입력·버튼: 손가락으로 누르기 쉬운 크기 (16px 이상이면 iOS 가 확대하지 않는다) */
+  input[type=text], input[type=password], input[type=number], input[type=search], select, textarea { font-size: 16px; min-height: 44px; }
+  .btn, button { min-height: 44px; padding: 10px 14px; }
+  .btn.small, button.small { min-height: 40px; padding: 8px 12px; }
+  .qty-input { width: 72px !important; }
+  input[type=checkbox] { width: 20px; height: 20px; }
+  .checks label { margin: 6px 16px 6px 0; }
+
+  /* 폼은 세로로 쌓는다 */
+  .row > * { flex: 1 1 100%; }
+  .row > .fit { flex: 1 1 auto; }
+  .row.ac > .fit.actions { flex: 1 1 100%; }
+  .row.nowrap > * { flex: 1 1 auto; min-width: 0; }
+  .actions { width: 100%; }
+  .actions .btn, .actions button { flex: 1 1 auto; text-align: center; }
+  .card { padding: 14px; }
+  .cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat { padding: 12px; }
+  .stat .value { font-size: 24px; }
+  .pager a, .pager span { padding: 8px 12px; }
+  dl.kv, #result dl.kv { grid-template-columns: 1fr; }
+  dl.kv dt { margin-top: 6px; }
+  .scanbar input[type=text] { font-size: 22px; }
+
+  /* 스캔 표는 핵심 열만 */
+  .hide-sm { display: none !important; }
+  table.compact { min-width: 0; }
+  table.stack.compact td.acts { border-top: 0; margin-top: 0; padding-top: 4px; }
+  table.stack.compact .actions { flex-wrap: nowrap; align-items: center; }
+  th, td { padding: 8px; }
+
+  /* 목록 표 → 카드 (class="stack", 각 칸에 data-label) */
+  .table-wrap:has(> table.stack) { border: none; background: none; overflow: visible; }
+  table.stack, table.stack tbody { display: block; min-width: 0; }
+  table.stack tr.thead { display: none; }
+  table.stack tr { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 10px; }
+  table.stack tr.risk { background: #fffaf0; }
+  table.stack td { display: block; min-width: 0; padding: 4px 0; border: 0; text-align: left; overflow-wrap: anywhere; }
+  table.stack td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; font-weight: 600; line-height: 1.3; }
+  table.stack td.title { grid-column: 1 / -1; font-weight: 600; font-size: 15px; padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  table.stack td.title::before { display: none; }
+  table.stack td.acts { grid-column: 1 / -1; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+  table.stack td.acts::before { display: none; }
+  table.stack td.acts:empty { display: none; }
+  table.stack .num { text-align: left; }
+
+  /* 확정 바: 엄지로 닿는 아래쪽에 붙여 둔다 */
+  .sticky-confirm { padding-bottom: calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -6px 14px rgba(0, 0, 0, .06); }
+  .sticky-confirm > * { flex: 1 1 100%; }
+  .sticky-confirm > strong { flex: 1 1 auto; }
+}
+
+@media screen and (max-width: 640px) {
+  table:not(.stack):not(.compact) { min-width: 600px; }
 }

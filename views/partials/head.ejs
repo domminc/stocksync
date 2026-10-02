@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12162b">
 <title><%= title ? title + ' · ' : '' %>StockSync</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/style.css">
@@ -11,7 +12,8 @@
 <body<% if (msg) { %> data-beep="<%= msgType === 'err' ? 'err' : 'ok' %>"<% } %>>
 <% if (user) { %>
 <div class="shell">
-  <aside class="side">
+  <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="메뉴 열기/닫기">
+  <aside class="side" id="side-nav">
     <div class="brand">StockSync</div>
     <div class="brand-sub">통합 재고관리</div>
     <% nav.forEach(function (g) { %>
@@ -20,12 +22,21 @@
         <a href="<%= i.href %>"<% if (i.active) { %> class="active" aria-current="page"<% } %>><%= i.label %></a>
       <% }) %>
     <% }) %>
+    <div class="side-user">
+      <div><strong><%= user.displayName %></strong> <span class="chip"><%= ROLES[user.role] %></span></div>
+      <a href="/password">비밀번호 변경</a>
+      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" type="submit">로그아웃</button></form>
+    </div>
   </aside>
+  <label for="nav-toggle" class="scrim" aria-hidden="true"></label>
   <div class="main-wrap">
     <header class="topbar">
-      <span class="small"><strong><%= user.displayName %></strong> · <span class="chip"><%= ROLES[user.role] %></span></span>
-      <a class="small" href="/password">비밀번호 변경</a>
-      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" type="submit">로그아웃</button></form>
+      <label for="nav-toggle" class="menu-btn"><span aria-hidden="true">☰</span> 메뉴</label>
+      <span class="mbrand">StockSync</span>
+      <span class="spacer"></span>
+      <span class="userinfo small"><strong><%= user.displayName %></strong> · <span class="chip"><%= ROLES[user.role] %></span></span>
+      <a class="userinfo small" href="/password">비밀번호 변경</a>
+      <form method="post" action="/logout" class="userinfo"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" type="submit">로그아웃</button></form>
     </header>
     <main class="main">
 <% } else { %>

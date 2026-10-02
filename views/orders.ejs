@@ -21,22 +21,22 @@
 </form>
 
 <% if (!result.rows.length) { %><p class="muted">조건에 맞는 주문이 없습니다.</p><% } else { %>
-<div class="table-wrap"><table>
-  <tr><th>주문번호</th><th>쇼핑몰</th><th>상품</th><th class="num">수량</th><th class="num">재고</th><th>상태</th><th></th></tr>
+<div class="table-wrap"><table class="stack">
+  <tr class="thead"><th>주문번호</th><th>쇼핑몰</th><th>상품</th><th class="num">수량</th><th class="num">재고</th><th>상태</th><th></th></tr>
   <% result.rows.forEach(function (o) {
        var short = o.status === 'pending' && o.product_id && o.qty > o.stock_qty; %>
   <tr<%= short ? ' class=risk' : '' %>>
-    <td><%= o.order_no %><div class="small muted"><%= o.ordered_at %></div></td>
-    <td><%= o.channel || '-' %></td>
-    <td>
+    <td class="title"><%= o.order_no %><div class="small muted"><%= o.ordered_at %></div></td>
+    <td data-label="쇼핑몰"><%= o.channel || '-' %></td>
+    <td data-label="상품">
       <% if (o.product_id) { %><a href="/products/<%= o.product_id %>"><%= o.product_name %></a><% if (o.option_name) { %> <span class="muted small"><%= o.option_name %></span><% } %>
       <% } else { %><span class="chip low">미매칭</span> <%= o.item_name || o.raw_code %><div class="small muted"><%= o.raw_code %></div><% } %>
     </td>
-    <td class="num"><%= o.qty %></td>
-    <td class="num"><%= o.product_id ? n(o.stock_qty) : '-' %><% if (short) { %><div><span class="chip err">재고 부족</span></div><% } %></td>
-    <td><span class="chip <%= o.status === 'pending' ? 'pri' : (o.status === 'canceled' ? '' : 'ok') %>"><%= ORDER_STATUS_LABEL[o.status] %></span>
+    <td class="num" data-label="수량"><%= o.qty %></td>
+    <td class="num" data-label="재고"><%= o.product_id ? n(o.stock_qty) : '-' %><% if (short) { %><div><span class="chip err">재고 부족</span></div><% } %></td>
+    <td data-label="상태"><span class="chip <%= o.status === 'pending' ? 'pri' : (o.status === 'canceled' ? '' : 'ok') %>"><%= ORDER_STATUS_LABEL[o.status] %></span>
       <% if (o.needs_return) { %><div><span class="chip err">반품 필요</span></div><% } %></td>
-    <td>
+    <td class="acts">
       <div class="actions">
       <% if (o.status === 'pending' && can('order.ship')) { %>
         <% if (o.product_id) { %>

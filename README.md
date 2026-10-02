@@ -80,7 +80,8 @@ DB_PATH=data/demo.db npm start
 
 ```text
 src/app.js            Express 설정, 보안 헤더, 세션/CSRF/권한 가드
-src/routes/           화면별 라우트 (auth, dashboard, products, stock, orders, users)
+src/routes/           화면별 라우트 (auth, dashboard, products, stock, orders, labels, users)
+scripts/responsive-check.mjs  여러 화면 폭 자동 점검 (playwright-core 필요)
 src/lib/inventory.js  재고 증감·원장·출고확정·반품 (핵심 규칙은 여기)
 src/lib/products.js   상품 검증·검색·CSV 가져오기·대시보드 집계
 src/lib/orders.js     주문 CSV 가져오기·매칭(코드/상품명)·상태 해석
@@ -93,10 +94,26 @@ migrations/           SQL 마이그레이션 (순서대로 자동 적용)
 tests/                node:test 기반 단위·통합 테스트
 ```
 
+## 반응형
+
+| 화면 폭 | 동작 |
+| --- | --- |
+| 901px 이상 | 왼쪽 고정 메뉴 + 본문 (1500px 이상은 본문을 가운데로) |
+| 900px 이하 (태블릿·폰) | 메뉴는 `☰ 메뉴` 버튼으로 여는 서랍 (Esc 로 닫기), 상단 바 고정, 사용자 정보·로그아웃은 서랍 아래 |
+| 640px 이하 (폰) | 목록 표(상품·주문·원장·스캔 목록 등)는 카드로, 폼은 세로로, 버튼·입력은 44px 높이(16px 글자 — iOS 확대 방지), 스캔 확정 바는 화면 아래 고정 |
+
+메뉴는 CSS 만으로 동작하고(자바스크립트 없이), 인쇄(라벨)에는 모바일 규칙이 적용되지 않습니다.
+화면을 고칠 때는 아래 점검을 돌려 보세요 — 5개 화면 폭 × 18개 화면에서 가로 넘침, 메뉴 열기/닫기, 카드 변환, 터치 크기, 스캔 화면 동작을 확인합니다.
+
+```sh
+npm run check:responsive                # 문제가 있으면 목록을 출력하고 종료 코드 1
+npm run check:responsive -- --shots     # responsive-shots/ 에 스크린샷 저장
+```
+
 ## 테스트
 
 ```sh
-npm test      # 77개 (재고 규칙, 가져오기, 바코드 발급·EAN-13 막대, 상품명 매칭, 권한 매트릭스, CSRF, XSS, 10만 건 성능 포함)
+npm test      # 79개 (재고 규칙, 가져오기, 바코드 발급·EAN-13 막대, 상품명 매칭, 권한 매트릭스, CSRF, XSS, 10만 건 성능 포함)
 ```
 
 통합테스트 시나리오 목록은 [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md).

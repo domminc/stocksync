@@ -14,26 +14,26 @@
 <% if (!lines.length) { %>
   <p class="muted">아직 스캔한 상품이 없습니다.</p>
 <% } else { %>
-<div class="table-wrap"><table class="compact">
-  <tr><th>상품</th><th class="hide-sm">바코드</th><th class="num">현재 재고</th><th class="num">스캔 수량</th><th></th></tr>
+<div class="table-wrap"><table class="stack compact">
+  <tr class="thead"><th>상품</th><th class="hide-sm">바코드</th><th class="num">현재 재고</th><th>스캔 수량</th></tr>
   <% lines.forEach(function (l) { var short = s.mode === 'out' && l.qty > l.stock; %>
   <tr<%= short ? ' class=risk' : '' %>>
-    <td><%= l.name %><% if (l.option_name) { %> <span class="muted small"><%= l.option_name %></span><% } %>
+    <td class="title"><%= l.name %><% if (l.option_name) { %> <span class="muted small"><%= l.option_name %></span><% } %>
       <% if (short) { %><div><span class="chip err">재고 부족</span></div><% } %></td>
-    <td class="small hide-sm"><%= l.barcode %></td>
-    <td class="num"><%= n(l.stock) %></td>
-    <td class="num">
-      <form method="post" action="/scan/<%= s.id %>/line/<%= l.id %>" class="inline">
-        <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input class="qty-input" type="number" name="qty" min="0" max="100000" value="<%= l.qty %>" aria-label="수량">
-        <button class="small" type="submit">변경</button>
-      </form>
-    </td>
-    <td>
-      <form method="post" action="/scan/<%= s.id %>/line/<%= l.id %>" class="inline">
-        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="qty" value="0">
-        <button class="small danger" type="submit">삭제</button>
-      </form>
+    <td class="small hide-sm" data-label="바코드"><%= l.barcode %></td>
+    <td class="num" data-label="현재 재고"><%= n(l.stock) %></td>
+    <td class="acts">
+      <div class="actions">
+        <form method="post" action="/scan/<%= s.id %>/line/<%= l.id %>" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input class="qty-input" type="number" name="qty" min="0" max="100000" value="<%= l.qty %>" aria-label="수량">
+          <button class="small" type="submit">변경</button>
+        </form>
+        <form method="post" action="/scan/<%= s.id %>/line/<%= l.id %>" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="qty" value="0">
+          <button class="small danger" type="submit">삭제</button>
+        </form>
+      </div>
     </td>
   </tr>
   <% }) %>

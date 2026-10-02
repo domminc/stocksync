@@ -46,24 +46,24 @@
 
 <% if (orders.length) { %>
 <h2>미출고 주문</h2>
-<div class="table-wrap"><table>
-  <tr><th>주문번호</th><th>쇼핑몰</th><th class="num">수량</th><th>주문일시</th></tr>
-  <% orders.forEach(function (o) { %><tr><td><%= o.order_no %></td><td><%= o.channel %></td><td class="num"><%= o.qty %></td><td class="small"><%= o.ordered_at %></td></tr><% }) %>
+<div class="table-wrap"><table class="stack">
+  <tr class="thead"><th>주문번호</th><th>쇼핑몰</th><th class="num">수량</th><th>주문일시</th></tr>
+  <% orders.forEach(function (o) { %><tr><td class="title"><%= o.order_no %></td><td data-label="쇼핑몰"><%= o.channel %></td><td class="num" data-label="수량"><%= o.qty %></td><td class="small" data-label="주문일시"><%= o.ordered_at %></td></tr><% }) %>
 </table></div>
 <% } %>
 
 <h2>최근 재고 변동</h2>
 <% if (!ledger.length) { %><p class="muted">변동 이력이 없습니다.</p><% } else { %>
-<div class="table-wrap"><table>
-  <tr><th>시각</th><th>구분</th><th class="num">증감</th><th class="num">변동 후</th><th>메모</th><th>처리자</th></tr>
+<div class="table-wrap"><table class="stack">
+  <tr class="thead"><th>시각</th><th>구분</th><th class="num">증감</th><th class="num">변동 후</th><th>메모</th><th>처리자</th></tr>
   <% ledger.forEach(function (l) { %>
   <tr>
-    <td class="small"><%= fmtTime(l.created_at) %></td>
-    <td><%= EVENT_LABEL[l.event_type] || l.event_type %></td>
-    <td class="num"><%= (l.qty_delta > 0 ? '+' : '') + l.qty_delta %><% if (l.hold_delta) { %> <span class="muted small">(보류 <%= (l.hold_delta > 0 ? '+' : '') + l.hold_delta %>)</span><% } %></td>
-    <td class="num"><%= n(l.qty_after) %></td>
-    <td class="small"><%= l.reason %></td>
-    <td class="small"><%= l.user_name || '-' %></td>
+    <td class="small" data-label="시각"><%= fmtTime(l.created_at) %></td>
+    <td class="title"><%= EVENT_LABEL[l.event_type] || l.event_type %></td>
+    <td class="num" data-label="증감"><%= (l.qty_delta > 0 ? '+' : '') + l.qty_delta %><% if (l.hold_delta) { %> <span class="muted small">(보류 <%= (l.hold_delta > 0 ? '+' : '') + l.hold_delta %>)</span><% } %></td>
+    <td class="num" data-label="변동 후"><%= n(l.qty_after) %></td>
+    <td class="small" data-label="메모"><%= l.reason %></td>
+    <td class="small" data-label="처리자"><%= l.user_name || '-' %></td>
   </tr>
   <% }) %>
 </table></div>

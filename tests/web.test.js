@@ -390,3 +390,33 @@ function createProductForWeb(name, option) {
   db.prepare("INSERT INTO inventory (product_id, qty, hold, updated_at) VALUES (?, 5, 0, '')").run(Number(r.lastInsertRowid));
   return Number(r.lastInsertRowid);
 }
+
+test('반응형: 접이식 메뉴 구조와, 카드로 바뀌는 목록 표의 모든 칸에 라벨이 있다', async () => {
+  const c = await as('admin');
+  const pid = addProduct(db, 880);
+  applyStock(db, { productId: pid, qtyDelta: 3, eventType: 'IN' });
+  importOrders(db, `주문번호,바코드,수량\nRS1,${ean(880)},1`);
+  const shell = await (await c.get('/')).text();
+  assert.match(shell, /<meta name="viewport" content="width=device-width, initial-scale=1/);
+  assert.match(shell, /<input type="checkbox" id="nav-toggle"/);
+  assert.match(shell, /<label for="nav-toggle" class="menu-btn"/);
+  assert.match(shell, /<label for="nav-toggle" class="scrim"/);
+  for (const path of ['/', '/products', '/orders', '/ledger', `/products/${pid}`, '/orders/ship', '/scan/in']) {
+    const html = await (await c.get(path)).text();
+    for (const [table] of html.matchAll(/<table class="stack">[\s\S]*?<\/table>/g)) {
+      assert.match(table, /<tr class="thead">/, `${path}: 머리글 행`);
+      const tds = [...table.matchAll(/<td\b([^>]*)>/g)].map((m) => m[1]);
+      assert.ok(tds.length > 0, `${path}: 데이터 행`);
+      for (const attrs of tds) {
+        assert.ok(/data-label="[^"]+"/.test(attrs) || /class="[^"]*\b(title|acts)\b/.test(attrs), `${path}: 라벨 없는 칸 <td${attrs}>`);
+      }
+    }
+  }
+});
+
+test('반응형: 모바일 규칙이 인쇄에 적용되지 않는다 (screen 조건)', async () => {
+  const css = await (await fetch(`${base}/static/style.css`)).text();
+  const widthQueries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((m) => m[1].trim()).filter((q) => /max-width|min-width/.test(q));
+  assert.ok(widthQueries.length >= 3);
+  for (const q of widthQueries) assert.match(q, /^screen\s+and/, `@media ${q}`);
+});

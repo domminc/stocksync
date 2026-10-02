@@ -24,16 +24,16 @@
 <% if (stats.recent.length === 0) { %>
   <p class="muted">아직 재고 변동이 없습니다.</p>
 <% } else { %>
-<div class="table-wrap"><table>
-  <tr><th>시각</th><th>구분</th><th>상품</th><th class="num">증감</th><th class="num">변동 후</th><th>처리자</th></tr>
+<div class="table-wrap"><table class="stack">
+  <tr class="thead"><th>시각</th><th>구분</th><th>상품</th><th class="num">증감</th><th class="num">변동 후</th><th>처리자</th></tr>
   <% stats.recent.forEach(function (r) { %>
   <tr>
-    <td class="small"><%= fmtTime(r.created_at) %></td>
-    <td><%= EVENT_LABEL[r.event_type] || r.event_type %></td>
-    <td><a href="/products/<%= r.product_id %>"><%= r.name %></a><% if (r.option_name) { %> <span class="muted small"><%= r.option_name %></span><% } %></td>
-    <td class="num"><%= (r.qty_delta > 0 ? '+' : '') + r.qty_delta %><% if (r.hold_delta) { %> <span class="muted small">(보류 <%= (r.hold_delta > 0 ? '+' : '') + r.hold_delta %>)</span><% } %></td>
-    <td class="num"><%= n(r.qty_after) %></td>
-    <td class="small"><%= r.user_name || '-' %></td>
+    <td class="small" data-label="시각"><%= fmtTime(r.created_at) %></td>
+    <td data-label="구분"><%= EVENT_LABEL[r.event_type] || r.event_type %></td>
+    <td class="title"><a href="/products/<%= r.product_id %>"><%= r.name %></a><% if (r.option_name) { %> <span class="muted small"><%= r.option_name %></span><% } %></td>
+    <td class="num" data-label="증감"><%= (r.qty_delta > 0 ? '+' : '') + r.qty_delta %><% if (r.hold_delta) { %> <span class="muted small">(보류 <%= (r.hold_delta > 0 ? '+' : '') + r.hold_delta %>)</span><% } %></td>
+    <td class="num" data-label="변동 후"><%= n(r.qty_after) %></td>
+    <td class="small" data-label="처리자"><%= r.user_name || '-' %></td>
   </tr>
   <% }) %>
 </table></div>

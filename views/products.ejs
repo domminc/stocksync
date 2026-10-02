@@ -28,23 +28,23 @@
 <% if (result.rows.length === 0) { %>
   <p class="muted">조건에 맞는 상품이 없습니다.</p>
 <% } else { %>
-<div class="table-wrap"><table>
-  <tr>
+<div class="table-wrap"><table class="stack">
+  <tr class="thead">
     <th>상품</th><th>바코드</th><th class="num">판매 가능</th><th class="num">보류</th><th class="num">미출고 주문</th><th class="num">안전재고</th><th>상태</th>
   </tr>
   <% result.rows.forEach(function (r) {
        var st = stockStatus({ tracked: r.tracked, qty: r.qty, safety: r.safety_stock });
        var risk = r.tracked && r.pending > r.qty; %>
   <tr<%= risk ? ' class=risk' : '' %>>
-    <td><a href="/products/<%= r.id %>"><%= r.name %></a>
+    <td class="title"><a href="/products/<%= r.id %>"><%= r.name %></a>
       <% if (r.option_name) { %><div class="small muted"><%= r.option_name %></div><% } %>
       <% if (!r.active) { %><span class="chip">사용 중지</span><% } %></td>
-    <td class="small"><%= r.barcode %><div class="muted"><%= r.sku_code !== r.barcode ? r.sku_code : '' %></div><% if (!r.label_printed_at && r.active) { %><span class="chip">라벨 미출력</span><% } %></td>
-    <td class="num"><strong><%= n(r.qty) %></strong></td>
-    <td class="num"><%= r.hold ? n(r.hold) : '-' %></td>
-    <td class="num"><%= r.pending ? n(r.pending) : '-' %><% if (risk) { %><div><span class="chip err">가용 초과</span></div><% } %></td>
-    <td class="num"><%= r.safety_stock || '-' %></td>
-    <td><span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span></td>
+    <td class="small" data-label="바코드"><%= r.barcode %><div class="muted"><%= r.sku_code !== r.barcode ? r.sku_code : '' %></div><% if (!r.label_printed_at && r.active) { %><span class="chip">라벨 미출력</span><% } %></td>
+    <td class="num" data-label="판매 가능"><strong><%= n(r.qty) %></strong></td>
+    <td class="num" data-label="보류"><%= r.hold ? n(r.hold) : '-' %></td>
+    <td class="num" data-label="미출고 주문"><%= r.pending ? n(r.pending) : '-' %><% if (risk) { %><div><span class="chip err">가용 초과</span></div><% } %></td>
+    <td class="num" data-label="안전재고"><%= r.safety_stock || '-' %></td>
+    <td data-label="상태"><span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span></td>
   </tr>
   <% }) %>
 </table></div>

@@ -15,17 +15,17 @@
   </div>
 </form>
 <% if (!result.rows.length) { %><p class="muted">조건에 맞는 기록이 없습니다.</p><% } else { %>
-<div class="table-wrap"><table>
-  <tr><th>시각</th><th>구분</th><th>상품</th><th class="num">증감</th><th class="num">변동 후</th><th>메모</th><th>처리자</th></tr>
+<div class="table-wrap"><table class="stack">
+  <tr class="thead"><th>시각</th><th>구분</th><th>상품</th><th class="num">증감</th><th class="num">변동 후</th><th>메모</th><th>처리자</th></tr>
   <% result.rows.forEach(function (l) { %>
   <tr>
-    <td class="small"><%= fmtTime(l.created_at) %></td>
-    <td><%= EVENT_LABEL[l.event_type] || l.event_type %></td>
-    <td><a href="/products/<%= l.product_id %>"><%= l.name %></a><% if (l.option_name) { %> <span class="muted small"><%= l.option_name %></span><% } %></td>
-    <td class="num"><%= (l.qty_delta > 0 ? '+' : '') + l.qty_delta %><% if (l.hold_delta) { %> <span class="muted small">(보류 <%= (l.hold_delta > 0 ? '+' : '') + l.hold_delta %>)</span><% } %></td>
-    <td class="num"><%= n(l.qty_after) %></td>
-    <td class="small"><%= l.reason %></td>
-    <td class="small"><%= l.user_name || '-' %></td>
+    <td class="small" data-label="시각"><%= fmtTime(l.created_at) %></td>
+    <td data-label="구분"><%= EVENT_LABEL[l.event_type] || l.event_type %></td>
+    <td class="title"><a href="/products/<%= l.product_id %>"><%= l.name %></a><% if (l.option_name) { %> <span class="muted small"><%= l.option_name %></span><% } %></td>
+    <td class="num" data-label="증감"><%= (l.qty_delta > 0 ? '+' : '') + l.qty_delta %><% if (l.hold_delta) { %> <span class="muted small">(보류 <%= (l.hold_delta > 0 ? '+' : '') + l.hold_delta %>)</span><% } %></td>
+    <td class="num" data-label="변동 후"><%= n(l.qty_after) %></td>
+    <td class="small" data-label="메모"><%= l.reason %></td>
+    <td class="small" data-label="처리자"><%= l.user_name || '-' %></td>
   </tr>
   <% }) %>
 </table></div>

@@ -4,17 +4,23 @@
   "private": true,
   "description": "매장·온라인 통합 재고관리 (바코드 스캔 기반)",
   "type": "module",
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
     "dev": "node --disable-warning=ExperimentalWarning --watch src/server.js",
     "test": "node --disable-warning=ExperimentalWarning --test \"tests/**/*.test.js\"",
     "create-admin": "node --disable-warning=ExperimentalWarning scripts/create-admin.js",
     "seed": "node --disable-warning=ExperimentalWarning scripts/seed-sample.js",
-    "backup": "node --disable-warning=ExperimentalWarning scripts/backup.js"
+    "backup": "node --disable-warning=ExperimentalWarning scripts/backup.js",
+    "check:responsive": "node --disable-warning=ExperimentalWarning scripts/responsive-check.mjs"
   },
   "dependencies": {
     "ejs": "^3.1.10",
     "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
   }
 }
