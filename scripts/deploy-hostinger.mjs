@@ -149,15 +149,25 @@ async function exists(token) {
   }
 }
 
-async function storeProject(token, content, envText) {
-  // 문서에 환경변수 형식이 명시돼 있지 않아 문자열을 먼저 보내고, 형식 오류(422)면 객체로 다시 보낸다.
-  try {
-    return await api(token, 'POST', '/docker', { project_name: PROJECT, content, environment: envText });
-  } catch (e) {
-    if (e.status !== 422) throw e;
-    const obj = Object.fromEntries(envText.split('\n').filter(Boolean).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
-    return api(token, 'POST', '/docker', { project_name: PROJECT, content, environment: obj });
+function envAsObject(envText) {
+  return Object.fromEntries(envText.split('\n').filter(Boolean).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+}
+
+async function storeProject(token, content, envText, preferObject) {
+  // 문서에 환경변수 형식이 명시돼 있지 않다. 기존 프로젝트가 객체로 돌려주면 객체를, 아니면 문자열을 먼저 보내고
+  // 거부(403/422)되면 다른 형식으로 한 번 더 보낸다.
+  const forms = preferObject ? [envAsObject(envText), envText] : [envText, envAsObject(envText)];
+  let last;
+  for (const environment of forms) {
+    try {
+      return await api(token, 'POST', '/docker', { project_name: PROJECT, content, environment });
+    } catch (e) {
+      last = e;
+      if (e.status !== 422 && e.status !== 403) throw e;
+      console.log(`환경변수를 ${typeof environment === 'string' ? '문자열' : '객체'}로 보낸 요청이 거부됨(${e.status}). 다른 형식으로 재시도합니다.`);
+    }
   }
+  throw last;
 }
 
 async function verifyPublic() {
@@ -190,7 +200,7 @@ async function main() {
   console.log(`인증서 resolver: ${resolver || '(자동 감지 실패 → letsencrypt)'}`);
 
   const current = await exists(token);
-  if (current) console.log(`조회 응답 키: ${Object.keys(current).join(', ') || '(비어 있음)'}`);
+  if (current) console.log(`조회 응답 키: ${Object.keys(current).join(', ') || '(비어 있음)'} · environment 형식: ${current.environment === null ? 'null' : typeof current.environment} · compose 첫 줄: ${String(current.content || '').split('\n')[0].slice(0, 60)}`);
   console.log(current ? '기존 stocksync 프로젝트를 갱신합니다.' : 'stocksync 프로젝트를 새로 만듭니다.');
   const adminPassword = process.env.STOCKSYNC_ADMIN_PASSWORD || '';
   const envText = environmentText({
@@ -201,7 +211,7 @@ async function main() {
   });
 
   const content = composeContent({ repository, sha, resolver: resolver || 'letsencrypt' });
-  const stored = await storeProject(token, content, envText);
+  const stored = await storeProject(token, content, envText, Boolean(current) && typeof current.environment === 'object' && current.environment !== null);
   await waitAction(token, Number(stored.id));
   const updated = await api(token, 'POST', `/docker/${PROJECT}/update`);
   await waitAction(token, Number(updated.id));
