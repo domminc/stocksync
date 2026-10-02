@@ -52,7 +52,7 @@ DB_PATH=data/demo.db npm run seed -- 300     # 로그인: admin/manager/staff/on
 DB_PATH=data/demo.db npm start
 ```
 
-환경 변수는 `.env.example` 참고. 운영 배포·백업은 [docs/OPERATIONS.md](docs/OPERATIONS.md).
+환경 변수는 `.env.example` 참고. 운영 배포·도메인 연결·백업은 [docs/OPERATIONS.md](docs/OPERATIONS.md) (서버 설치 스크립트: `deploy/setup.sh`).
 
 ## 사용 순서 (처음 도입할 때)
 
@@ -127,7 +127,7 @@ npm run check:responsive -- --shots     # responsive-shots/ 에 스크린샷 저
 ## 테스트
 
 ```sh
-npm test      # 90개 (재고 규칙, 가져오기, 바코드 발급·EAN-13 막대, 상품명 매칭, 권한 매트릭스, CSRF, XSS, 10만 건 성능 포함)
+npm test      # 91개 (재고 규칙, 가져오기, 바코드 발급·EAN-13 막대, 상품명 매칭, 권한 매트릭스, CSRF, XSS, 10만 건 성능 포함)
 ```
 
 통합테스트 시나리오 목록은 [docs/TEST-SCENARIOS.md](docs/TEST-SCENARIOS.md).

@@ -1,6 +1,24 @@
 # 운영 가이드
 
-## 1. 서버에 올리기 (Ubuntu VPS 예시)
+## 0. jejubaseball.com 에 연결하기 (빠른 길)
+
+> 먼저 정하세요: **`jejubaseball.com` 루트 주소를 재고 시스템 전용으로 쓰는가?** 이미 쇼핑몰·홈페이지가 그 주소에 있다면 통째로 바꾸면 안 됩니다. 그때는 `stock.jejubaseball.com` 같은 하위 주소를 쓰세요(아래 `DOMAIN=` 값만 바꾸면 됩니다). 재고 시스템은 내부 업무용이라 별도 주소가 더 안전합니다.
+
+1. **DNS(도메인 업체 화면):** 쓸 주소(`jejubaseball.com` 또는 `stock.jejubaseball.com`)의 **A 레코드**를 서버의 공인 IP로 설정. IPv6(AAAA)가 이미 다른 곳을 가리키면 함께 정리. 반영에는 몇 분~몇 시간이 걸립니다.
+2. **서버(Hostinger VPS 등, root):** 아래 한 줄. 코드 내려받기, Node 22(없으면 별도 설치), 서비스 등록, HTTPS 인증서 자동 발급(Caddy), 매일 백업까지 합니다.
+   ```sh
+   git clone --depth 1 https://github.com/domminc/stocksync.git /opt/stocksync   # 처음 한 번
+   cd /opt/stocksync && DOMAIN=jejubaseball.com PASSWORD_MIN_LENGTH=10 bash deploy/setup.sh
+   ```
+   - 서버에 이미 nginx/apache가 80·443 포트를 쓰고 있으면 Caddy를 설치하지 않고, 기존 웹 서버에 넣을 설정을 출력합니다(다른 사이트를 깨뜨리지 않기 위해).
+   - 서버의 기존 Node는 건드리지 않습니다(필요하면 `/opt/node22`에 따로 설치).
+3. **관리자 계정:** 스크립트가 마지막에 출력하는 `create-admin` 명령을 실행해 `jiny` 를 만들고 비밀번호를 직접 입력.
+4. **방화벽:** 80, 443 포트 허용(Hostinger 방화벽 + `ufw` 둘 다 확인). `https://도메인` 접속.
+5. **업데이트:** 같은 `DOMAIN=… bash deploy/setup.sh` 를 다시 실행(코드 갱신 + 재시작). 데이터(`/var/lib/stocksync`)는 그대로 유지.
+
+HTTPS 운영 설정(`SECURE_COOKIE=1`, `TRUST_PROXY=1`)이 켜져 있으면 로그인 쿠키는 HTTPS 전용이고 브라우저가 항상 HTTPS로 접속하도록 HSTS가 함께 전송됩니다(하위 도메인에는 적용하지 않음).
+
+## 1. 서버에 올리기 (수동 설치 설명)
 
 ```sh
 # Node.js 22 설치 후

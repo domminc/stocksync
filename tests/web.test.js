@@ -656,3 +656,21 @@ test('계정 삭제: 내 계정·마지막 관리자는 삭제 불가, 관리자
   }
   assert.ok(second > 0);
 });
+
+test('HTTPS 운영 설정(SECURE_COOKIE)일 때만 HSTS 와 Secure 쿠키', async () => {
+  const db2 = memDb();
+  addUser(db2, 'admin');
+  const app2 = createApp({ db: db2, secureCookie: true });
+  const srv = app2.listen(0, '127.0.0.1');
+  await new Promise((r) => srv.once('listening', r));
+  try {
+    const url = `http://127.0.0.1:${srv.address().port}`;
+    const page = await fetch(`${url}/login`);
+    assert.equal(page.headers.get('strict-transport-security'), 'max-age=15552000');
+    assert.ok(!/includeSubDomains/i.test(page.headers.get('strict-transport-security')));
+    const login = await fetch(`${url}/login`, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ username: 'admin', password: PASSWORD }) });
+    assert.match(login.headers.get('set-cookie'), /; Secure/);
+  } finally { srv.close(); }
+  // 기본(개발) 설정에는 HSTS 가 없다
+  assert.equal((await fetch(`${base}/login`)).headers.get('strict-transport-security'), null);
+});

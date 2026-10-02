@@ -74,6 +74,9 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
       'Referrer-Policy': 'same-origin',
       'Cache-Control': 'no-store',
     });
+    // HTTPS 로 운영할 때만: 브라우저가 이 도메인에 항상 HTTPS 로 접속하게 한다.
+    // includeSubDomains 는 쓰지 않는다 (같은 도메인의 다른 하위 사이트에 영향을 주지 않도록).
+    if (secureCookie) res.set('Strict-Transport-Security', 'max-age=15552000');
     next();
   });
   app.use('/static', express.static(path.join(root, 'public'), { maxAge: '1h', setHeaders: (res) => res.set('Cache-Control', 'public, max-age=3600') }));
