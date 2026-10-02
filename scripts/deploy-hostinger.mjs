@@ -106,7 +106,8 @@ async function api(token, method, path, body) {
   try { data = raw ? JSON.parse(raw) : {}; } catch { /* 본문이 JSON 이 아니면 비워 둔다 */ }
   if (!res.ok) {
     const msg = String(data.message || 'request rejected').replace(/\s+/g, ' ').slice(0, 200);
-    const err = new Error(`Hostinger API ${res.status}: ${msg}`);
+    const fields = data.errors && typeof data.errors === 'object' ? ` fields=${Object.keys(data.errors).join(',')}` : '';
+    const err = new Error(`Hostinger API ${res.status} (${method} ${path}): ${msg}${fields}`);
     err.status = res.status;
     throw err;
   }
@@ -189,6 +190,7 @@ async function main() {
   console.log(`인증서 resolver: ${resolver || '(자동 감지 실패 → letsencrypt)'}`);
 
   const current = await exists(token);
+  if (current) console.log(`조회 응답 키: ${Object.keys(current).join(', ') || '(비어 있음)'}`);
   console.log(current ? '기존 stocksync 프로젝트를 갱신합니다.' : 'stocksync 프로젝트를 새로 만듭니다.');
   const adminPassword = process.env.STOCKSYNC_ADMIN_PASSWORD || '';
   const envText = environmentText({
