@@ -420,3 +420,34 @@ test('반응형: 모바일 규칙이 인쇄에 적용되지 않는다 (screen �
   assert.ok(widthQueries.length >= 3);
   for (const q of widthQueries) assert.match(q, /^screen\s+and/, `@media ${q}`);
 });
+
+test('목록 개수: 폰 10개 / PC 20개 (쿠키 → 없으면 접속 기기로 추정)', async () => {
+  for (let i = 0; i < 100; i++) addProduct(db, 2000 + i, { name: `개수확인 상품 ${i}` });
+  const c = await as('viewer');
+  const rows = async (path, headers = {}) => {
+    const res = await fetch(base + path, { redirect: 'manual', headers: { cookie: c.cookie, ...headers } });
+    const html = await res.text();
+    return { rows: (html.match(/<td class="title"/g) || []).length, html };
+  };
+  const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148';
+  assert.equal((await rows('/products?q=개수확인')).rows, 20, '기본(PC)');
+  assert.equal((await rows('/products?q=개수확인', { 'user-agent': IPHONE })).rows, 10, '폰으로 보이는 기기');
+  assert.equal((await rows('/products?q=개수확인', { cookie: `${c.cookie}; dv=m` })).rows, 10, '쿠키: 폰');
+  assert.equal((await rows('/products?q=개수확인', { cookie: `${c.cookie}; dv=d`, 'user-agent': IPHONE })).rows, 20, '쿠키가 접속 기기 추정보다 우선');
+  const p2 = await rows('/products?q=개수확인&page=3', { cookie: `${c.cookie}; dv=m` });
+  assert.equal(p2.rows, 10);
+  assert.match(p2.html, /3\/10쪽/);
+  assert.match(p2.html, /data-ps="10"/);
+  // 쪽이 7개 이하(PC 20개씩 5쪽)면 쪽 이동 입력이 없다
+  assert.ok(!/class="pager-jump"/.test((await rows('/products?q=개수확인')).html), '5쪽이면 이동 입력 없음');
+  assert.ok(/class="pager-jump"/.test(p2.html), '10쪽이면 이동 입력 있음');
+  // 쪽이 많으면 쪽 이동 입력 (검색 조건 유지)
+  const many = await rows('/products?filter=out&page=2', { cookie: `${c.cookie}; dv=m` });
+  assert.equal(many.rows, 10);
+  assert.match(many.html, /class="pager-jump"/);
+  assert.match(many.html, /name="filter" value="out"/);
+  // 다른 목록도 같은 규칙
+  const led = (await rows('/ledger', { cookie: `${c.cookie}; dv=m` })).rows;
+  assert.ok(led > 0 && led <= 10, `원장 ${led}건`);
+  assert.equal((await rows('/orders', { cookie: `${c.cookie}; dv=m` })).rows <= 10, true);
+});

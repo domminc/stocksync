@@ -31,6 +31,22 @@
     } catch (e) { /* 소리가 막혀 있어도 동작에는 영향 없음 */ }
   }
 
+  // 목록 개수: 폰(640px 이하)은 10개, 그 밖은 20개. 서버가 추정한 개수가 실제 화면 폭과 다르면 쿠키를 고치고 한 번만 다시 불러온다.
+  var mq = window.matchMedia('(max-width: 640px)');
+  function deviceCookie() { return mq.matches ? 'm' : 'd'; }
+  function setDevice() { document.cookie = 'dv=' + deviceCookie() + '; Path=/; Max-Age=31536000; SameSite=Lax'; }
+  var servedSize = Number(document.body.getAttribute('data-ps') || 0);
+  if (servedSize) {
+    var want = mq.matches ? 10 : 20;
+    setDevice();
+    if (servedSize !== want && document.querySelector('.pager, .table-wrap table.stack') && !/[?&]dv=/.test(location.search)) {
+      var url = new URL(location.href);
+      url.searchParams.set('dv', '1');
+      location.replace(url.toString());
+    }
+  }
+  if (mq.addEventListener) mq.addEventListener('change', setDevice);
+
   // 라벨 인쇄
   document.addEventListener('click', function (e) {
     var t = e.target;

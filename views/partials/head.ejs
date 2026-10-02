@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/static/style.css">
 <script src="/static/app.js" defer></script>
 </head>
-<body<% if (msg) { %> data-beep="<%= msgType === 'err' ? 'err' : 'ok' %>"<% } %>>
+<body<% if (user) { %> data-ps="<%= pageSize %>"<% } %><% if (msg) { %> data-beep="<%= msgType === 'err' ? 'err' : 'ok' %>"<% } %>>
 <% if (user) { %>
 <div class="shell">
   <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="메뉴 열기/닫기">

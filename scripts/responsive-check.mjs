@@ -69,6 +69,7 @@ const note = (vp, page, msg) => failures.push(`[${vp.name}] ${page} — ${msg}`)
 
 for (const vp of VIEWPORTS) {
   const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, locale: 'ko-KR', hasTouch: vp.width < 900 });
+  await ctx.addCookies([{ name: 'dv', value: vp.width <= 640 ? 'm' : 'd', url: base }]);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => note(vp, '(script)', e.message));
   await page.goto(`${base}/login`);
@@ -154,6 +155,17 @@ for (const vp of VIEWPORTS) {
     }
   }
 
+  // 3-2) 목록 개수: 폰 10개, 그 밖 20개 (+ 쪽 이동)
+  {
+    const want = vp.width <= 640 ? 10 : 20;
+    await page.goto(base + '/products');
+    const rowsOnPage = await page.evaluate(() => document.querySelectorAll('table.stack tr:not(.thead)').length);
+    if (rowsOnPage !== want) note(vp, '/products', `한 페이지 ${rowsOnPage}개 (기대 ${want}개)`);
+    // 쪽이 7개를 넘으면 '쪽 이동' 입력이 나온다 (120개 기준: 폰 12쪽 → 있음, PC 6쪽 → 없음)
+    const jump = await page.evaluate(() => !!document.querySelector('.pager-jump'));
+    if (jump !== (vp.width <= 640)) note(vp, '/products', `쪽 이동 입력 ${jump ? '이 있음' : '이 없음'} (쪽 수에 맞지 않음)`);
+  }
+
   // 4) 스캔 화면: 스캔 입력과 확정 버튼이 한 화면에서 보이는지
   await page.goto(base + '/scan/in');
   const code = db.prepare('SELECT barcode FROM products ORDER BY id LIMIT 3').all().map((r) => r.barcode);
@@ -173,6 +185,26 @@ for (const vp of VIEWPORTS) {
       await page.screenshot({ path: `${shotDir}/${vp.width}-${n}.png`, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height: Math.min(1500, await page.evaluate(() => document.documentElement.scrollHeight)) } });
     }
   }
+  await ctx.close();
+}
+
+{
+  // 처음 접속한 폰(쿠키 없음, PC 로 보이는 UA): 서버는 20개로 그리지만 브라우저가 쿠키를 고치고 한 번만 다시 불러와 10개가 된다
+  const vp = { name: '폰 첫 방문(390)', width: 390, height: 844 };
+  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, locale: 'ko-KR', hasTouch: true });
+  const page = await ctx.newPage();
+  await page.goto(`${base}/login`);
+  await page.fill('#username', 'admin');
+  await page.fill('#password', PASSWORD);
+  await Promise.all([page.waitForURL(`${base}/`), page.click('form[action="/login"] button[type=submit]')]);
+  await page.goto(base + '/products');
+  await page.waitForFunction(() => document.body.getAttribute('data-ps') === '10', null, { timeout: 5000 }).catch(() => note(vp, '/products', '첫 방문에서 10개로 바뀌지 않음'));
+  const rows = await page.evaluate(() => document.querySelectorAll('table.stack tr:not(.thead)').length);
+  if (rows !== 10) note(vp, '/products', `첫 방문 보정 후 ${rows}개 (기대 10개)`);
+  const cookies = await ctx.cookies();
+  if (cookies.find((c) => c.name === 'dv')?.value !== 'm') note(vp, '/products', 'dv 쿠키가 설정되지 않음');
+  await page.goto(base + '/orders');
+  if (await page.evaluate(() => document.body.getAttribute('data-ps')) !== '10') note(vp, '/orders', '다른 목록에서 10개가 유지되지 않음');
   await ctx.close();
 }
 

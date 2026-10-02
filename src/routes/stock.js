@@ -4,6 +4,7 @@ import { tx } from '../db.js';
 import { nowIso } from '../lib/time.js';
 import { normalizeBarcode } from '../lib/ean13.js';
 import { audit } from '../lib/auth.js';
+import { pageSizeFor } from '../lib/pagesize.js';
 
 const int = (v, d) => {
   const n = Number.parseInt(String(v ?? ''), 10);
@@ -163,13 +164,14 @@ export function registerStock(app, { db, guard }) {
     if (/^[A-Z_]+$/.test(event)) { where.push('l.event_type = ?'); params.push(event); }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const total = db.prepare(`SELECT COUNT(*) AS n FROM stock_ledger l ${whereSql}`).get(...params).n;
-    const pages = Math.max(1, Math.ceil(total / 100));
+    const size = pageSizeFor(req);
+    const pages = Math.max(1, Math.ceil(total / size));
     const cur = Math.min(page, pages);
     const rows = db.prepare(
       `SELECT l.*, p.name, p.option_name, p.barcode, u.display_name AS user_name
          FROM stock_ledger l JOIN products p ON p.id = l.product_id LEFT JOIN users u ON u.id = l.user_id
-         ${whereSql} ORDER BY l.id DESC LIMIT 100 OFFSET ?`,
-    ).all(...params, (cur - 1) * 100);
+         ${whereSql} ORDER BY l.id DESC LIMIT ? OFFSET ?`,
+    ).all(...params, size, (cur - 1) * size);
     const pageUrl = (n) => `/ledger?${new URLSearchParams({ q, event, page: String(n) })}`;
     res.render('ledger', { title: '재고 원장', q, event, result: { rows, total, page: cur, pages }, pageUrl });
   });

@@ -12,8 +12,17 @@
        prev = i;
      }) %>
   <% if (result.page < result.pages) { %><a href="<%= pageUrl(result.page + 1) %>">다음</a><% } %>
-  <span class="gap small muted">총 <%= n(result.total) %>건</span>
+  <span class="gap small muted">총 <%= n(result.total) %>건 · <%= n(result.page) %>/<%= n(result.pages) %>쪽</span>
 </nav>
+<% if (result.pages > 7) {
+     var jump = new URL(pageUrl(1), 'http://local'); %>
+<form method="get" action="<%= jump.pathname %>" class="pager-jump">
+  <% jump.searchParams.forEach(function (v, k) { if (k !== 'page') { %><input type="hidden" name="<%= k %>" value="<%= v %>"><% } }) %>
+  <label for="jump-page" class="small muted">쪽 이동</label>
+  <input id="jump-page" name="page" type="number" min="1" max="<%= result.pages %>" value="<%= result.page %>" inputmode="numeric">
+  <button class="small" type="submit">이동</button>
+</form>
+<% } %>
 <% } else { %>
 <p class="small muted">총 <%= n(result.total) %>건</p>
 <% } %>

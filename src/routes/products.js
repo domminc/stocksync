@@ -5,6 +5,7 @@ import {
 import { resolveHold } from '../lib/inventory.js';
 import { decodeText, csvCell } from '../lib/csv.js';
 import { audit } from '../lib/auth.js';
+import { pageSizeFor } from '../lib/pagesize.js';
 
 const int = (v, d) => {
   const n = Number.parseInt(String(v ?? ''), 10);
@@ -19,7 +20,7 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
   app.get('/products', guard('view'), (req, res) => {
     const q = String(req.query.q ?? '').slice(0, 100);
     const filter = Object.hasOwn(FILTERS, req.query.filter) ? String(req.query.filter) : '';
-    const result = listProducts(db, { q, filter, page: int(req.query.page, 1), pageSize: 50 });
+    const result = listProducts(db, { q, filter, page: int(req.query.page, 1), pageSize: pageSizeFor(req) });
     const base = (page) => `/products?${new URLSearchParams({ q, filter, page: String(page) })}`;
     res.render('products', { title: '상품·재고', q, filter, FILTERS, result, pageUrl: base });
   });

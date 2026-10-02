@@ -100,6 +100,8 @@ th { background: #f0f2f7; font-size: 13px; color: var(--muted); font-weight: 600
 tr:last-child td { border-bottom: none; }
 td.num, th.num { text-align: right; }
 tr.risk td { background: #fffaf0; }
+.pager-jump { display: flex; align-items: center; gap: 8px; margin: -4px 0 14px; }
+.pager-jump input { width: 90px; }
 .pager { display: flex; gap: 6px; align-items: center; margin: 14px 0; flex-wrap: wrap; }
 .pager a, .pager span { padding: 5px 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
 .pager span.cur { background: var(--pri); color: #fff; border-color: var(--pri); }

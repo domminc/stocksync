@@ -15,6 +15,7 @@ import { registerOrders } from './routes/orders.js';
 import { registerUsers } from './routes/users.js';
 import { registerLabels } from './routes/labels.js';
 import { ean13Svg } from './lib/barcodes.js';
+import { pageSizeFor } from './lib/pagesize.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -87,7 +88,7 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
 
     const msg = typeof req.query.msg === 'string' ? req.query.msg.slice(0, 300) : '';
     Object.assign(res.locals, {
-      ean13Svg, user: req.user, csrf: req.csrf, ROLES, EVENT_LABEL, STATUS_LABEL, stockStatus, fmtTime,
+      ean13Svg, pageSize: pageSizeFor(req), user: req.user, csrf: req.csrf, ROLES, EVENT_LABEL, STATUS_LABEL, stockStatus, fmtTime,
       can: (perm) => Boolean(req.user && can(req.user.role, perm)),
       n: (v) => Number(v ?? 0).toLocaleString('ko-KR'),
       msg, msgType: req.query.t === 'err' ? 'err' : 'ok',

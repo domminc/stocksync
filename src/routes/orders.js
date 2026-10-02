@@ -7,6 +7,7 @@ import { findProductByCode, ValidationError } from '../lib/products.js';
 import { shipOrderLine, cancelPendingLine, returnOrderLine, StockError } from '../lib/inventory.js';
 import { normalizeBarcode } from '../lib/ean13.js';
 import { audit } from '../lib/auth.js';
+import { pageSizeFor } from '../lib/pagesize.js';
 
 const int = (v, d) => {
   const n = Number.parseInt(String(v ?? ''), 10);
@@ -25,7 +26,7 @@ export function registerOrders(app, { db, guard }) {
   app.get('/orders', guard('view'), (req, res) => {
     const status = Object.hasOwn(FILTERS, req.query.status) ? String(req.query.status) : '';
     const q = String(req.query.q ?? '').slice(0, 100);
-    const result = listOrders(db, { status, q, page: int(req.query.page, 1), pageSize: 50 });
+    const result = listOrders(db, { status, q, page: int(req.query.page, 1), pageSize: pageSizeFor(req) });
     const pageUrl = (n) => `/orders?${new URLSearchParams({ status, q, page: String(n) })}`;
     res.render('orders', { title: '주문 목록', status, q, FILTERS, ORDER_STATUS_LABEL, result, pageUrl, returnTo: pageUrl(result.page) });
   });
