@@ -270,3 +270,19 @@ button, .btn { white-space: nowrap; }
 @media screen and (max-width: 640px) {
   table:not(.stack):not(.compact) { min-width: 600px; }
 }
+
+/* 계정 관리 */
+.temp-password {
+  font: 700 28px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .08em;
+  background: var(--navy); color: #fff; padding: 16px 20px; border-radius: 10px; text-align: center;
+  margin: 14px 0; user-select: all; overflow-wrap: anywhere;
+}
+.inline-details > summary { list-style: none; cursor: pointer; }
+.inline-details > summary::-webkit-details-marker { display: none; }
+.inline-details[open] { flex: 1 1 100%; }
+.user-actions { align-items: flex-start; }
+@media screen and (max-width: 640px) {
+  .temp-password { font-size: 22px; padding: 14px; }
+  .inline-details { width: 100%; }
+  .inline-details > summary { display: block; text-align: center; }
+}

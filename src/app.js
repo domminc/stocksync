@@ -39,7 +39,7 @@ const NAV = [
   ] },
   { group: '관리', items: [
     { href: '/products/import', label: '상품 가져오기', perm: 'product.import' },
-    { href: '/users', label: '사용자', perm: 'user.manage' },
+    { href: '/users', label: '계정 관리', perm: 'user.manage' },
   ] },
 ];
 
@@ -113,6 +113,10 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
     if (!req.user) {
       if (req.method === 'GET') return res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
       return res.status(401).render('error', { title: '로그인 필요', message: '로그인이 필요합니다.' });
+    }
+    if (req.user.mustChange && req.path !== '/password' && req.path !== '/logout') {
+      if (req.method === 'GET') return res.redirectWith('/password', '비밀번호를 새로 정해야 계속 사용할 수 있습니다.', 'err');
+      return res.status(403).render('error', { title: '비밀번호 변경 필요', message: '먼저 비밀번호를 새로 정해 주세요.' });
     }
     if (perm && !can(req.user.role, perm)) {
       return res.status(403).render('error', { title: '권한 없음', message: '이 기능을 사용할 권한이 없습니다. 관리자에게 문의하세요.' });

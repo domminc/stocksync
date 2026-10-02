@@ -1,6 +1,6 @@
 import {
-  verifyPassword, createSession, destroySession, destroyUserSessions, isLoginLocked, recordLoginFailure,
-  clearLoginFailures, burnPasswordCheck, validatePassword, hashPassword, audit,
+  verifyPassword, createSession, destroySession, isLoginLocked, recordLoginFailure,
+  clearLoginFailures, burnPasswordCheck, validatePassword, setPassword, audit,
 } from '../lib/auth.js';
 import { nowIso } from '../lib/time.js';
 
@@ -24,7 +24,7 @@ export function registerAuth(app, { db, guard, secureCookie }) {
     const fail = (status, error) => res.status(status).render('login', { title: '로그인', next, error });
 
     if (isLoginLocked(db, username, ip)) return fail(429, '로그인 시도가 너무 많습니다. 15분 뒤에 다시 시도하세요.');
-    const row = db.prepare('SELECT id, password_hash, active FROM users WHERE username = ?').get(username);
+    const row = db.prepare('SELECT id, password_hash, active, must_change_password FROM users WHERE username = ?').get(username);
     if (!row || !row.active) {
       burnPasswordCheck(password);
       recordLoginFailure(db, username, ip);
@@ -38,7 +38,7 @@ export function registerAuth(app, { db, guard, secureCookie }) {
     const s = createSession(db, row.id);
     db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(nowIso(), row.id);
     res.set('Set-Cookie', cookie(s.token, { secure: secureCookie, maxAgeSec: s.maxAgeSec }));
-    res.redirect(next);
+    res.redirect(row.must_change_password ? '/password' : next);
   });
 
   app.post('/logout', guard(), (req, res) => {
@@ -54,10 +54,10 @@ export function registerAuth(app, { db, guard, secureCookie }) {
     const next = String(req.body.next ?? '');
     const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
     if (!verifyPassword(current, row.password_hash)) return res.redirectWith('/password', '현재 비밀번호가 올바르지 않습니다.', 'err');
-    const problem = validatePassword(next);
+    const problem = validatePassword(next, { username: req.user.username, current });
     if (problem) return res.redirectWith('/password', problem, 'err');
-    db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(hashPassword(next), nowIso(), req.user.id);
-    destroyUserSessions(db, req.user.id); // 다른 기기의 로그인은 모두 끊고, 이 기기는 새로 로그인시킨다
+    if (String(req.body.confirm ?? next) !== next) return res.redirectWith('/password', '새 비밀번호 확인이 일치하지 않습니다.', 'err');
+    setPassword(db, req.user.id, next, { mustChange: false }); // 다른 기기의 로그인은 모두 끊고, 이 기기는 새로 로그인시킨다
     const s = createSession(db, req.user.id);
     audit(db, req.user.id, 'password.change');
     res.set('Set-Cookie', cookie(s.token, { secure: secureCookie, maxAgeSec: s.maxAgeSec }));

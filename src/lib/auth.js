@@ -6,10 +6,22 @@ const LOCK_WINDOW_MIN = 15;
 const MAX_FAILS_PER_USER = 5;
 const MAX_FAILS_PER_IP = 30;
 
-export function validatePassword(pw) {
+/** 비밀번호 규칙: 10자 이상, 아이디를 포함하지 않음, (변경 시) 현재 비밀번호와 달라야 함 */
+export function validatePassword(pw, { username = '', current = null } = {}) {
   if (typeof pw !== 'string' || pw.length < 10) return '비밀번호는 10자 이상이어야 합니다.';
   if (pw.length > 200) return '비밀번호가 너무 깁니다.';
+  const u = String(username).toLowerCase();
+  if (u.length >= 3 && pw.toLowerCase().includes(u)) return '비밀번호에 아이디를 포함할 수 없습니다.';
+  if (current !== null && pw === current) return '현재 비밀번호와 다른 비밀번호를 정해 주세요.';
   return null;
+}
+
+const TEMP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'; // 헷갈리는 글자(0 O 1 l I) 제외
+/** 임시 비밀번호 12자 (읽기 쉽게 4자씩 '-' 로 구분). 예: Xk7p-Rm4q-Tz9b */
+export function generateTempPassword() {
+  let s = '';
+  for (let i = 0; i < 12; i++) s += TEMP_ALPHABET[crypto.randomInt(TEMP_ALPHABET.length)];
+  return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8)}`;
 }
 
 export function hashPassword(pw) {
@@ -51,14 +63,14 @@ export function createSession(db, userId) {
 export function loadSession(db, token) {
   if (!token || typeof token !== 'string' || token.length > 200) return null;
   const row = db.prepare(
-    `SELECT s.csrf, s.expires_at, u.id, u.username, u.display_name, u.role, u.active
+    `SELECT s.csrf, s.expires_at, u.id, u.username, u.display_name, u.role, u.active, u.must_change_password
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ?`,
   ).get(sha(token));
   if (!row || !row.active || row.expires_at < nowIso()) return null;
   return {
     csrf: row.csrf,
-    user: { id: row.id, username: row.username, displayName: row.display_name, role: row.role },
+    user: { id: row.id, username: row.username, displayName: row.display_name, role: row.role, mustChange: row.must_change_password === 1 },
   };
 }
 
@@ -85,10 +97,25 @@ export function audit(db, userId, action, detail = '') {
   db.prepare('INSERT INTO audit_log (user_id, action, detail, at) VALUES (?, ?, ?, ?)').run(userId, action, String(detail).slice(0, 500), nowIso());
 }
 
-export function createUser(db, { username, displayName, password, role }) {
+/** mustChange=true 면 첫 로그인 때 비밀번호를 새로 정하게 한다 (관리자가 임시 비밀번호를 정해 준 계정). */
+export function createUser(db, { username, displayName, password, role, mustChange = false }) {
   const now = nowIso();
   const r = db.prepare(
-    'INSERT INTO users (username, display_name, password_hash, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?)',
-  ).run(username, displayName, hashPassword(password), role, now, now);
+    'INSERT INTO users (username, display_name, password_hash, role, active, must_change_password, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?)',
+  ).run(username, displayName, hashPassword(password), role, mustChange ? 1 : 0, now, now);
   return Number(r.lastInsertRowid);
+}
+
+/** 비밀번호 바꾸기. 로그인 중인 모든 기기는 로그아웃된다. mustChange=true 면 다음 로그인 때 본인이 다시 정해야 한다. */
+export function setPassword(db, userId, password, { mustChange }) {
+  const now = nowIso();
+  db.prepare('UPDATE users SET password_hash = ?, must_change_password = ?, password_changed_at = ?, updated_at = ? WHERE id = ?')
+    .run(hashPassword(password), mustChange ? 1 : 0, now, now, userId);
+  destroyUserSessions(db, userId);
+}
+
+/** 로그인 실패로 잠긴(15분) 아이디 목록 */
+export function lockedUsernames(db) {
+  const since = new Date(Date.now() - LOCK_WINDOW_MIN * 60e3).toISOString();
+  return new Set(db.prepare('SELECT username FROM login_attempts WHERE at > ? GROUP BY username HAVING COUNT(*) >= ?').all(since, MAX_FAILS_PER_USER).map((r) => r.username));
 }

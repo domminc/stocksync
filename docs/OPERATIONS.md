@@ -7,7 +7,7 @@
 sudo useradd -r -m -s /usr/sbin/nologin stocksync
 sudo -u stocksync git clone <저장소 주소> /opt/stocksync
 cd /opt/stocksync && sudo -u stocksync npm ci --omit=dev
-sudo -u stocksync DB_PATH=/var/lib/stocksync/stocksync.db npm run create-admin -- admin "관리자"
+sudo -u stocksync DB_PATH=/var/lib/stocksync/stocksync.db npm run create-admin -- jiny "지니"
 ```
 
 `/etc/systemd/system/stocksync.service`
@@ -92,7 +92,7 @@ DB 구조 변경은 `migrations/` 의 새 SQL 이 시작할 때 자동 적용됩
 
 - 화면에서 “서버에서 오류가 발생했습니다” → `journalctl -u stocksync -n 100` 의 `[오류]` 줄.
 - 로그인이 잠겼다면 15분 뒤 자동 해제됩니다. 급하면 DB에서 `DELETE FROM login_attempts;` 를 실행하세요 (서비스 재시작으로는 풀리지 않습니다).
-- 관리자 비밀번호를 잊었다면 `npm run create-admin` 으로 새 관리자를 만든 뒤 기존 계정 비밀번호를 재설정.
+- 일반 계정의 비밀번호는 관리자가 `계정 관리`에서 초기화합니다. 관리자(jiny)가 비밀번호를 잊었다면 서버에서 `DB_PATH=/var/lib/stocksync/stocksync.db npm run reset-password -- jiny` 로 임시 비밀번호를 받고, 로그인해서 새로 정합니다.
 
 ## 7. 알아 둘 점
 

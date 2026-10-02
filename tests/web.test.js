@@ -5,6 +5,7 @@ import { createApp } from '../src/app.js';
 import { applyStock } from '../src/lib/inventory.js';
 import { importOrders } from '../src/lib/orders.js';
 import { makeNameKey } from '../src/lib/namekey.js';
+import { createUser } from '../src/lib/auth.js';
 
 let db, server, base;
 
@@ -28,7 +29,7 @@ class Client {
   }
 
   async loadCsrf() {
-    const html = await (await this.fetch('/')).text();
+    const html = await (await this.fetch('/password')).text();
     this.csrf = /name="_csrf" value="([^"]+)"/.exec(html)?.[1] ?? '';
   }
 
@@ -293,6 +294,10 @@ test('사용자 추가 / 역할 변경 시 기존 로그인이 풀린다', async
 
   const newbie = new Client();
   assert.equal((await newbie.login('newbie', 'a-long-password-1')).status, 302);
+  const first = await newbie.get('/adjust');
+  assert.equal(first.status, 302, '임시 비밀번호로 처음 로그인하면 다른 화면 대신 비밀번호 변경으로');
+  assert.match(first.headers.get('location'), /^\/password/);
+  assert.equal((await newbie.post('/password', { current: 'a-long-password-1', next: 'own-secret-pass-7', confirm: 'own-secret-pass-7' })).status, 302);
   assert.equal((await newbie.get('/adjust')).status, 403);
   const id = db.prepare("SELECT id FROM users WHERE username = 'newbie'").get().id;
   await admin.post(`/users/${id}`, { display_name: '신입', role: 'manager', active: '1' });
@@ -451,3 +456,108 @@ test('목록 개수: 폰 10개 / PC 20개 (쿠키 → 없으면 접속 기기로
   assert.ok(led > 0 && led <= 10, `원장 ${led}건`);
   assert.equal((await rows('/orders', { cookie: `${c.cookie}; dv=m` })).rows <= 10, true);
 });
+
+// ---------- 계정 관리 ----------
+const tempOf = (html) => /class="temp-password"[^>]*>([^<]+)</.exec(html)?.[1];
+
+test('계정 관리: 비밀번호 초기화 → 임시 비밀번호는 그 화면에서만, 첫 로그인은 비밀번호 변경부터', async () => {
+  createUserForWeb('resetme', 'staff', 'old-password-12345');
+  const admin = await as('admin');
+  const id = db.prepare("SELECT id FROM users WHERE username = 'resetme'").get().id;
+  const old = new Client();
+  assert.equal((await old.login('resetme', 'old-password-12345')).status, 302);
+
+  const res = await admin.post(`/users/${id}/reset`);
+  assert.equal(res.status, 200, '리다이렉트하지 않고 한 번만 보여 준다 (주소·기록에 비밀번호가 남지 않게)');
+  const temp = tempOf(await res.text());
+  assert.match(temp, /^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/);
+  assert.ok(!/[01OIl]/.test(temp.replace(/-/g, '')), '헷갈리는 글자 제외');
+
+  assert.equal((await old.get('/products')).status, 302, '초기화하면 기존 로그인은 끊긴다');
+  assert.equal((await new Client().login('resetme', 'old-password-12345')).status, 401, '예전 비밀번호는 못 씀');
+
+  const u = new Client();
+  assert.equal((await u.login('resetme', temp)).status, 302);
+  const blocked = await u.get('/products');
+  assert.equal(blocked.status, 302);
+  assert.match(blocked.headers.get('location'), /^\/password/);
+  assert.equal((await u.post('/scan/1/confirm')).status, 403, '변경 전에는 쓰기도 막힘');
+  assert.equal((await u.get('/password')).status, 200);
+  // 규칙: 아이디 포함 / 현재와 동일 / 확인 불일치 / 짧음
+  const rule = async (next, confirm = next) => flashOf(await u.post('/password', { current: temp, next, confirm }));
+  assert.match(await rule('resetme-secret-99'), /아이디를 포함/);
+  assert.match(await rule(temp), /다른 비밀번호|10자/);
+  assert.match(await rule('short'), /10자/);
+  assert.match(await rule('another-secret-88', 'different-secret-88'), /일치하지/);
+  const ok = await u.post('/password', { current: temp, next: 'my-new-secret-2026', confirm: 'my-new-secret-2026' });
+  assert.equal(ok.status, 302);
+  assert.equal((await u.get('/products')).status, 200);
+  assert.equal(db.prepare("SELECT must_change_password FROM users WHERE username = 'resetme'").get().must_change_password, 0);
+
+  // 임시 비밀번호는 어디에도 남지 않는다
+  const dump = JSON.stringify(db.prepare('SELECT * FROM audit_log').all()) + JSON.stringify(db.prepare('SELECT username, password_hash FROM users').all());
+  assert.ok(!dump.includes(temp));
+  assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action = 'user.reset' AND detail = 'resetme'").get());
+  assert.ok(!(await (await admin.get('/users')).text()).includes(temp));
+});
+
+test('계정 관리: 초기화는 로그인 잠금도 풀고, 직접 지정한 비밀번호도 첫 로그인 때 바꾸게 한다', async () => {
+  createUserForWeb('locked1', 'staff', 'old-password-12345');
+  createUserForWeb('setpw1', 'staff', 'old-password-12345');
+  const admin = await as('admin');
+  const lockedId = db.prepare("SELECT id FROM users WHERE username = 'locked1'").get().id;
+  const setId = db.prepare("SELECT id FROM users WHERE username = 'setpw1'").get().id;
+
+  for (let i = 0; i < 5; i++) await new Client().login('locked1', 'wrong-password-123');
+  assert.equal((await new Client().login('locked1', 'old-password-12345')).status, 429);
+  assert.match(await (await admin.get('/users')).text(), /로그인 잠김/);
+  let r = await admin.post(`/users/${lockedId}/unlock`);
+  assert.match(flashOf(r), /잠금을 풀었습니다/);
+  assert.equal((await new Client().login('locked1', 'old-password-12345')).status, 302);
+
+  r = await admin.post(`/users/${setId}/password`, { password: 'setpw1-weak-1' });
+  assert.match(flashOf(r), /아이디를 포함/);
+  r = await admin.post(`/users/${setId}/password`, { password: 'short' });
+  assert.match(flashOf(r), /10자/);
+  r = await admin.post(`/users/${setId}/password`, { password: 'assigned-by-admin-5' });
+  assert.match(flashOf(r), /지정했습니다/);
+  const u = new Client();
+  assert.equal((await u.login('setpw1', 'assigned-by-admin-5')).status, 302);
+  assert.match((await u.get('/products')).headers.get('location'), /^\/password/);
+});
+
+test('계정 관리: 관리자만, 내 비밀번호는 초기화·지정 불가, 없는 계정 처리', async () => {
+  const admin = await as('admin');
+  const me = db.prepare("SELECT id FROM users WHERE username = 'admin'").get().id;
+  assert.match(flashOf(await admin.post(`/users/${me}/reset`)), /비밀번호 변경/);
+  assert.match(flashOf(await admin.post(`/users/${me}/password`, { password: 'whatever-secret-1' })), /비밀번호 변경/);
+  assert.match(flashOf(await admin.post('/users/999999/reset')), /찾을 수 없습니다/);
+  const other = db.prepare("SELECT id FROM users WHERE username = 'viewer'").get().id;
+  for (const role of ['manager', 'staff', 'online', 'viewer']) {
+    const c = await as(role);
+    for (const path of [`/users/${other}/reset`, `/users/${other}/password`, `/users/${other}/unlock`]) {
+      assert.equal((await c.post(path, { password: 'whatever-secret-1' })).status, 403, `${role} ${path}`);
+    }
+  }
+});
+
+test('계정 관리: 화면에 계정 목록·현황·활동 기록이 보이고 jiny 같은 관리자 아이디를 만들 수 있다', async () => {
+  createUserForWeb('jiny', 'admin', 'jiny-first-secret-1');
+  const jiny = new Client();
+  assert.equal((await jiny.login('jiny', 'jiny-first-secret-1')).status, 302);
+  const html = await (await jiny.get('/users')).text();
+  assert.match(html, /@jiny/);
+  assert.match(html, /계정 관리/);
+  assert.match(html, /최근 계정 활동/);
+  assert.match(html, /비밀번호 초기화/);
+  assert.match(html, /비밀번호 직접 지정/);
+  const before = db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action LIKE 'user.%'").get().n;
+  const ch = await jiny.post('/password', { current: 'jiny-first-secret-1', next: 'jiny-second-secret-2', confirm: 'jiny-second-secret-2' });
+  assert.equal(ch.status, 302);
+  assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action = 'password.change'").get());
+  assert.ok(before >= 0);
+});
+
+function createUserForWeb(username, role, password) {
+  return createUser(db, { username, displayName: `${username} 사용자`, password, role });
+}

@@ -1,48 +1,103 @@
 <%- include('partials/head') %>
-<h1>사용자 관리</h1>
-<div class="card">
-  <h2 class="mt0">역할별 권한</h2>
-  <div class="table-wrap"><table>
-    <tr><th>역할</th><th>할 수 있는 일</th></tr>
-    <tr><td><%= ROLES.admin %></td><td>모든 기능 + 사용자 관리</td></tr>
-    <tr><td><%= ROLES.manager %></td><td>상품 등록·가져오기, 입고·출고, 재고 조정, 온라인 주문 처리, 반품</td></tr>
-    <tr><td><%= ROLES.staff %></td><td>입고·출고 스캔, 조회 (재고 조정·가져오기는 불가)</td></tr>
-    <tr><td><%= ROLES.online %></td><td>온라인 주문 가져오기·출고확정·취소·반품·상품 연결, 조회</td></tr>
-    <tr><td><%= ROLES.viewer %></td><td>조회만 가능</td></tr>
-  </table></div>
+<h1>계정 관리</h1>
+<p class="muted">계정을 만들고, 역할과 사용 여부를 정하고, 비밀번호를 초기화합니다. 관리자가 비밀번호를 정해 주거나 초기화한 계정은 다음 로그인 때 본인이 새 비밀번호를 정해야 합니다.</p>
+
+<div class="cards users-summary">
+  <div class="stat"><div class="label">전체 계정</div><div class="value"><%= users.length %></div></div>
+  <div class="stat"><div class="label">사용 중</div><div class="value"><%= users.filter(function (u) { return u.active; }).length %></div></div>
+  <div class="stat <%= users.some(function (u) { return u.locked; }) ? 'warn' : '' %>"><div class="label">로그인 잠김</div><div class="value"><%= users.filter(function (u) { return u.locked; }).length %></div></div>
+  <div class="stat <%= users.some(function (u) { return u.must_change_password; }) ? 'warn' : '' %>"><div class="label">비밀번호 변경 대기</div><div class="value"><%= users.filter(function (u) { return u.must_change_password; }).length %></div></div>
 </div>
 
-<h2>사용자</h2>
-<div class="table-wrap"><table>
-  <tr><th>아이디</th><th>이름 · 역할 · 사용 여부 · 마지막 로그인 · 새 비밀번호(바꿀 때만 입력)</th></tr>
-  <% users.forEach(function (u) { %>
-  <tr>
-    <td><%= u.username %></td>
-    <td>
-      <form method="post" action="/users/<%= u.id %>" class="row ac">
-        <input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input type="text" name="display_name" value="<%= u.display_name %>" maxlength="50" aria-label="이름">
-        <select name="role" aria-label="역할">
-          <% Object.keys(ROLES).forEach(function (k) { %><option value="<%= k %>"<%= k === u.role ? ' selected' : '' %>><%= ROLES[k] %></option><% }) %>
-        </select>
-        <label class="fit checkline"><input class="wauto" type="checkbox" name="active" value="1"<%= u.active ? ' checked' : '' %>> 사용</label>
-        <span class="small muted fit"><%= u.last_login_at ? fmtTime(u.last_login_at) : '로그인 기록 없음' %></span>
-        <input type="password" name="password" placeholder="새 비밀번호 (10자 이상)" autocomplete="new-password" aria-label="새 비밀번호">
-        <button class="small pri fit" type="submit">저장</button>
-      </form>
-    </td>
-  </tr>
-  <% }) %>
-</table></div>
+<h2>계정 목록</h2>
+<% users.forEach(function (u) { %>
+<div class="card user-card">
+  <div class="row ac">
+    <div class="f2s">
+      <strong><%= u.display_name %></strong> <span class="muted">@<%= u.username %></span>
+      <% if (u.id === me) { %><span class="chip pri">나</span><% } %>
+      <% if (!u.active) { %><span class="chip">사용 중지</span><% } %>
+      <% if (u.locked) { %><span class="chip err">로그인 잠김</span><% } %>
+      <% if (u.must_change_password) { %><span class="chip low">비밀번호 변경 대기</span><% } %>
+      <div class="small muted">
+        <%= u.last_login_at ? '마지막 로그인 ' + fmtTime(u.last_login_at) : '로그인 기록 없음' %>
+        · <%= u.password_changed_at ? '비밀번호 변경 ' + fmtTime(u.password_changed_at) : '비밀번호 변경 기록 없음' %>
+      </div>
+    </div>
+  </div>
 
-<h2>사용자 추가</h2>
-<form method="post" action="/users" class="card mw560">
+  <form method="post" action="/users/<%= u.id %>" class="row ac mt12">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div><label for="dn-<%= u.id %>" class="small muted">이름</label><input id="dn-<%= u.id %>" type="text" name="display_name" value="<%= u.display_name %>" maxlength="50"></div>
+    <div><label for="rl-<%= u.id %>" class="small muted">역할</label>
+      <select id="rl-<%= u.id %>" name="role">
+        <% Object.keys(ROLES).forEach(function (k) { %><option value="<%= k %>"<%= k === u.role ? ' selected' : '' %>><%= ROLES[k] %></option><% }) %>
+      </select></div>
+    <label class="fit checkline"><input class="wauto" type="checkbox" name="active" value="1"<%= u.active ? ' checked' : '' %>> 사용</label>
+    <div class="fit"><button class="pri" type="submit">저장</button></div>
+  </form>
+
+  <% if (u.id !== me) { %>
+  <div class="actions mt12 user-actions">
+    <form method="post" action="/users/<%= u.id %>/reset" class="inline" data-confirm="<%= u.display_name %>의 비밀번호를 초기화합니다. 임시 비밀번호가 한 번만 표시되고, 로그인 중인 기기는 모두 로그아웃됩니다.">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button type="submit">비밀번호 초기화</button>
+    </form>
+    <% if (u.locked) { %>
+    <form method="post" action="/users/<%= u.id %>/unlock" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button type="submit">잠금 해제</button>
+    </form>
+    <% } %>
+    <details class="inline-details">
+      <summary class="btn">비밀번호 직접 지정</summary>
+      <form method="post" action="/users/<%= u.id %>/password" class="row ac mt8" autocomplete="off">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="password" name="password" placeholder="새 비밀번호 (10자 이상)" minlength="10" required autocomplete="new-password" aria-label="새 비밀번호">
+        <button class="fit" type="submit">지정</button>
+      </form>
+    </details>
+  </div>
+  <% } else { %>
+  <p class="small muted mt12">내 비밀번호는 <a href="/password">비밀번호 변경</a>에서 바꿉니다.</p>
+  <% } %>
+</div>
+<% }) %>
+
+<h2>계정 추가</h2>
+<form method="post" action="/users" class="card mw560" autocomplete="off">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <label for="nu">아이디 (영문 소문자·숫자 3~32자)</label><input id="nu" name="username" type="text" required autocomplete="off">
+  <label for="nu">아이디 (영문 소문자·숫자 3~32자)</label><input id="nu" name="username" type="text" required autocomplete="off" autocapitalize="none">
   <label for="nn">이름</label><input id="nn" name="display_name" type="text" required maxlength="50">
   <label for="nr">역할</label>
   <select id="nr" name="role"><% Object.keys(ROLES).forEach(function (k) { %><option value="<%= k %>"<%= k === 'staff' ? ' selected' : '' %>><%= ROLES[k] %></option><% }) %></select>
-  <label for="np">초기 비밀번호 (10자 이상)</label><input id="np" name="password" type="password" required minlength="10" autocomplete="new-password">
+  <label for="np">임시 비밀번호 (10자 이상)</label><input id="np" name="password" type="password" required minlength="10" autocomplete="new-password">
+  <p class="small muted mt8">임시 비밀번호를 본인에게 직접 전달하세요. 본인이 처음 로그인하면 새 비밀번호를 정하게 됩니다.</p>
   <p class="mt16"><button class="pri" type="submit">추가</button></p>
 </form>
+
+<h2>역할별 권한</h2>
+<div class="table-wrap"><table>
+  <tr><th>역할</th><th>할 수 있는 일</th></tr>
+  <tr><td><%= ROLES.admin %></td><td>모든 기능 + 계정 관리</td></tr>
+  <tr><td><%= ROLES.manager %></td><td>상품 등록·가져오기, 입고·출고, 재고 조정, 라벨 인쇄, 온라인 주문 처리, 반품</td></tr>
+  <tr><td><%= ROLES.staff %></td><td>입고·출고 스캔, 라벨 인쇄, 조회 (재고 조정·가져오기는 불가)</td></tr>
+  <tr><td><%= ROLES.online %></td><td>온라인 주문 가져오기·출고확정·취소·반품·상품 연결, 조회</td></tr>
+  <tr><td><%= ROLES.viewer %></td><td>조회만 가능</td></tr>
+</table></div>
+
+<h2>최근 계정 활동</h2>
+<% if (!history.length) { %><p class="muted">아직 기록이 없습니다.</p><% } else { %>
+<div class="table-wrap"><table class="stack">
+  <tr class="thead"><th>시각</th><th>구분</th><th>대상</th><th>처리자</th></tr>
+  <% history.forEach(function (h) { %>
+  <tr>
+    <td class="small" data-label="시각"><%= fmtTime(h.at) %></td>
+    <td data-label="구분"><%= h.label %></td>
+    <td data-label="대상"><%= h.detail || '-' %></td>
+    <td data-label="처리자"><%= h.actor || '-' %></td>
+  </tr>
+  <% }) %>
+</table></div>
+<% } %>
 <%- include('partials/foot') %>

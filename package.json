@@ -14,7 +14,8 @@
     "create-admin": "node --disable-warning=ExperimentalWarning scripts/create-admin.js",
     "seed": "node --disable-warning=ExperimentalWarning scripts/seed-sample.js",
     "backup": "node --disable-warning=ExperimentalWarning scripts/backup.js",
-    "check:responsive": "node --disable-warning=ExperimentalWarning scripts/responsive-check.mjs"
+    "check:responsive": "node --disable-warning=ExperimentalWarning scripts/responsive-check.mjs",
+    "reset-password": "node --disable-warning=ExperimentalWarning scripts/reset-password.js"
   },
   "dependencies": {
     "ejs": "^3.1.10",
