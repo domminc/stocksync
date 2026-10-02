@@ -21,26 +21,35 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const NAV = [
   { group: '현황', items: [
-    { href: '/', label: '대시보드', perm: 'view', exact: true },
-    { href: '/products', label: '상품·재고', perm: 'view', exact: false, not: ['/products/import'] },
-    { href: '/ledger', label: '재고 원장', perm: 'view' },
-    { href: '/labels', label: '라벨 인쇄', perm: 'label.print' },
+    { href: '/', label: '대시보드', icon: 'home', perm: 'view', exact: true },
+    { href: '/products', label: '상품·재고', icon: 'box', perm: 'view', exact: false, not: ['/products/import'] },
+    { href: '/ledger', label: '재고 원장', icon: 'list', perm: 'view' },
+    { href: '/labels', label: '라벨 인쇄', icon: 'tag', perm: 'label.print' },
   ] },
   { group: '매장', items: [
-    { href: '/scan/in', label: '입고 스캔', perm: 'stock.in' },
-    { href: '/scan/out', label: '출고 스캔', perm: 'stock.out' },
-    { href: '/adjust', label: '재고 조정', perm: 'stock.adjust' },
+    { href: '/scan/in', label: '입고 스캔', icon: 'in', perm: 'stock.in' },
+    { href: '/scan/out', label: '출고 스캔', icon: 'out', perm: 'stock.out' },
+    { href: '/adjust', label: '재고 조정', icon: 'sliders', perm: 'stock.adjust' },
   ] },
   { group: '온라인', items: [
-    { href: '/orders', label: '주문 목록', perm: 'view', exact: true },
-    { href: '/orders/ship', label: '출고 스캔', perm: 'order.ship' },
-    { href: '/orders/import', label: '주문 가져오기', perm: 'order.import' },
-    { href: '/orders/unmatched', label: '매칭 대기', perm: 'order.match' },
+    { href: '/orders', label: '주문 목록', icon: 'cart', perm: 'view', exact: true },
+    { href: '/orders/ship', label: '출고 스캔', icon: 'truck', perm: 'order.ship' },
+    { href: '/orders/import', label: '주문 가져오기', icon: 'upload', perm: 'order.import' },
+    { href: '/orders/unmatched', label: '매칭 대기', icon: 'link', perm: 'order.match' },
   ] },
   { group: '관리', items: [
-    { href: '/products/import', label: '상품 가져오기', perm: 'product.import' },
-    { href: '/users', label: '계정 관리', perm: 'user.manage' },
+    { href: '/products/import', label: '상품 가져오기', icon: 'upload', perm: 'product.import' },
+    { href: '/users', label: '계정 관리', icon: 'users', perm: 'user.manage' },
   ] },
+];
+
+// 모바일 하단 탭: 자주 쓰는 화면만 (권한이 없는 탭은 빠진다). 나머지는 "더보기"(메뉴 서랍)에서.
+const TABS = [
+  { href: '/', label: '홈', icon: 'home', perm: 'view', exact: true },
+  { href: '/scan/in', label: '입고', icon: 'in', perm: 'stock.in' },
+  { href: '/scan/out', label: '출고', icon: 'out', perm: 'stock.out' },
+  { href: '/products', label: '상품', icon: 'box', perm: 'view', not: ['/products/import'] },
+  { href: '/orders', label: '주문', icon: 'cart', perm: 'view', not: ['/orders/import', '/orders/unmatched'] },
 ];
 
 function parseCookies(header) {
@@ -96,6 +105,10 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
       n: (v) => Number(v ?? 0).toLocaleString('ko-KR'),
       msg, msgType: req.query.t === 'err' ? 'err' : 'ok',
       title: '', currentPath: req.path,
+      tabs: TABS.filter((t) => req.user && can(req.user.role, t.perm)).map((t) => ({
+        ...t,
+        active: t.exact ? req.path === t.href : (req.path === t.href || req.path.startsWith(`${t.href}/`)) && !(t.not ?? []).some((x) => req.path.startsWith(x)),
+      })),
       nav: NAV.map((g) => ({
         group: g.group,
         items: g.items.filter((i) => req.user && can(req.user.role, i.perm)).map((i) => ({

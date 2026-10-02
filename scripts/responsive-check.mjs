@@ -68,7 +68,7 @@ const failures = [];
 const note = (vp, page, msg) => failures.push(`[${vp.name}] ${page} — ${msg}`);
 
 for (const vp of VIEWPORTS) {
-  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, locale: 'ko-KR', hasTouch: vp.width < 900 });
+  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, locale: 'ko-KR', colorScheme: process.env.SCHEME === 'dark' ? 'dark' : 'light', hasTouch: vp.width < 900 });
   await ctx.addCookies([{ name: 'dv', value: vp.width <= 640 ? 'm' : 'd', url: base }]);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => note(vp, '(script)', e.message));
@@ -191,7 +191,7 @@ for (const vp of VIEWPORTS) {
 {
   // 처음 접속한 폰(쿠키 없음, PC 로 보이는 UA): 서버는 20개로 그리지만 브라우저가 쿠키를 고치고 한 번만 다시 불러와 10개가 된다
   const vp = { name: '폰 첫 방문(390)', width: 390, height: 844 };
-  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, locale: 'ko-KR', hasTouch: true });
+  const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, locale: 'ko-KR', colorScheme: process.env.SCHEME === 'dark' ? 'dark' : 'light', hasTouch: true });
   const page = await ctx.newPage();
   await page.goto(`${base}/login`);
   await page.fill('#username', 'admin');

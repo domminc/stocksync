@@ -1,18 +1,15 @@
 <%- include('partials/head') %>
-<h1>재고 원장</h1>
-<p class="muted">모든 재고 변동의 기록입니다. 수정하거나 삭제할 수 없습니다.</p>
-<form method="get" action="/ledger" class="card">
-  <div class="row">
-    <div class="f2"><label for="q">상품 (바코드 또는 상품코드)</label><input id="q" name="q" type="text" value="<%= q %>"></div>
-    <div>
-      <label for="event">구분</label>
-      <select id="event" name="event">
-        <option value="">전체</option>
-        <% Object.keys(EVENT_LABEL).forEach(function (k) { %><option value="<%= k %>"<%= k === event ? ' selected' : '' %>><%= EVENT_LABEL[k] %></option><% }) %>
-      </select>
-    </div>
-    <div class="fit"><button class="pri" type="submit">조회</button></div>
+<header class="page-head"><div><h1>재고 원장</h1><p class="lead">모든 재고 변동의 기록입니다. 수정하거나 삭제할 수 없습니다.</p></div></header>
+<form method="get" action="/ledger" class="toolbar">
+  <div class="grow"><label for="q">상품 (바코드 또는 상품코드)</label><input id="q" name="q" type="text" value="<%= q %>"></div>
+  <div class="field">
+    <label for="event">구분</label>
+    <select id="event" name="event">
+      <option value="">전체</option>
+      <% Object.keys(EVENT_LABEL).forEach(function (k) { %><option value="<%= k %>"<%= k === event ? ' selected' : '' %>><%= EVENT_LABEL[k] %></option><% }) %>
+    </select>
   </div>
+  <div class="fit"><button class="pri" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>조회</button></div>
 </form>
 <% if (!result.rows.length) { %><p class="muted">조건에 맞는 기록이 없습니다.</p><% } else { %>
 <div class="table-wrap"><table class="stack">

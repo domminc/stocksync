@@ -1,12 +1,12 @@
 <%- include('partials/head') %>
-<div class="row ac">
+<header class="page-head">
   <div><h1><%= m.label %> 스캔 <span class="chip <%= s.mode === 'in' ? 'ok' : 'low' %>"><%= m.label %></span></h1>
-    <p class="muted"><%= s.mode === 'in' ? '들어온 상품의 바코드를 차례로 스캔한 뒤 “입고 확정”을 누르세요.' : '매장에서 판매·출고한 상품의 바코드를 스캔한 뒤 “출고 확정”을 누르세요.' %> 확정 전에는 재고가 바뀌지 않습니다.</p></div>
-</div>
+    <p class="lead"><%= s.mode === 'in' ? '들어온 상품의 바코드를 차례로 스캔한 뒤 “입고 확정”을 누르세요.' : '매장에서 판매·출고한 상품의 바코드를 스캔한 뒤 “출고 확정”을 누르세요.' %> 확정 전에는 재고가 바뀌지 않습니다.</p></div>
+</header>
 
 <form method="post" action="/scan/<%= s.id %>/code" class="scanbar <%= s.mode %>" autocomplete="off">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <label for="code" class="small muted mt0">바코드 (스캐너로 읽으면 자동 입력되고 Enter 로 등록됩니다)</label>
+  <label for="code">바코드 (스캐너로 읽으면 자동 입력되고 Enter 로 등록됩니다)</label>
   <input id="code" name="code" type="text" data-scan-input inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="바코드 스캔">
   <div class="hint">같은 상품을 다시 스캔하면 수량이 1씩 늘어납니다. 등록되지 않은 바코드는 오류음이 납니다.</div>
 </form>

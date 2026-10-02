@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#12162b">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#4f46e5">
 <title><%= title ? title + ' · ' : '' %>StockSync</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/static/style.css">
@@ -11,32 +12,38 @@
 </head>
 <body<% if (user) { %> data-ps="<%= pageSize %>"<% } %><% if (msg) { %> data-beep="<%= msgType === 'err' ? 'err' : 'ok' %>"<% } %>>
 <% if (user) { %>
+<%- include('icons') %>
 <div class="shell">
   <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="메뉴 열기/닫기">
   <aside class="side" id="side-nav">
-    <div class="brand">StockSync</div>
-    <div class="brand-sub">통합 재고관리</div>
+    <div class="brand"><span class="logo" aria-hidden="true"><svg class="ic"><use href="#i-scan"/></svg></span><span><span class="brand-name">StockSync</span><span class="brand-sub">통합 재고관리</span></span></div>
+    <nav class="side-nav" aria-label="주 메뉴">
     <% nav.forEach(function (g) { %>
       <div class="nav-group"><%= g.group %></div>
       <% g.items.forEach(function (i) { %>
-        <a href="<%= i.href %>"<% if (i.active) { %> class="active" aria-current="page"<% } %>><%= i.label %></a>
+        <a href="<%= i.href %>"<% if (i.active) { %> class="active" aria-current="page"<% } %>><svg class="ic" aria-hidden="true"><use href="#i-<%= i.icon %>"/></svg><%= i.label %></a>
       <% }) %>
     <% }) %>
+    </nav>
     <div class="side-user">
-      <div><strong><%= user.displayName %></strong> <span class="chip"><%= ROLES[user.role] %></span></div>
-      <a href="/password">비밀번호 변경</a>
-      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" type="submit">로그아웃</button></form>
+      <div class="who"><span class="avatar" aria-hidden="true"><%= user.displayName.slice(0, 1) %></span><span><strong><%= user.displayName %></strong><span class="role"><%= ROLES[user.role] %></span></span></div>
+      <a href="/password"><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg>비밀번호 변경</a>
+      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="ghost" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-logout"/></svg>로그아웃</button></form>
     </div>
   </aside>
   <label for="nav-toggle" class="scrim" aria-hidden="true"></label>
   <div class="main-wrap">
     <header class="topbar">
-      <label for="nav-toggle" class="menu-btn"><span aria-hidden="true">☰</span> 메뉴</label>
+      <label for="nav-toggle" class="menu-btn" aria-label="메뉴"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg><span class="menu-text">메뉴</span></label>
       <span class="mbrand">StockSync</span>
       <span class="spacer"></span>
-      <span class="userinfo small"><strong><%= user.displayName %></strong> · <span class="chip"><%= ROLES[user.role] %></span></span>
-      <a class="userinfo small" href="/password">비밀번호 변경</a>
-      <form method="post" action="/logout" class="userinfo"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" type="submit">로그아웃</button></form>
+      <details class="usermenu userinfo">
+        <summary><span class="avatar" aria-hidden="true"><%= user.displayName.slice(0, 1) %></span><span class="uname"><strong><%= user.displayName %></strong><span class="role"><%= ROLES[user.role] %></span></span><svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+        <div class="menu-pop">
+          <a href="/password"><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg>비밀번호 변경</a>
+          <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="ghost" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-logout"/></svg>로그아웃</button></form>
+        </div>
+      </details>
     </header>
     <main class="main">
 <% } else { %>

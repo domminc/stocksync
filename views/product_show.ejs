@@ -1,17 +1,17 @@
 <%- include('partials/head') %>
 <% var st = stockStatus({ tracked: p.tracked, qty: p.qty, safety: p.safety_stock }); %>
-<div class="row ac">
+<header class="page-head">
   <div>
     <h1><%= p.name %></h1>
-    <p class="muted"><%= p.option_name %> <span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span>
+    <p class="lead"><%= p.option_name %> <span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span>
       <% if (!p.active) { %><span class="chip">사용 중지</span><% } %></p>
   </div>
-  <div class="fit actions">
+  <div class="actions">
     <% if (can('product.write')) { %><a class="btn" href="/products/<%= p.id %>/edit">수정</a><% } %>
     <% if (can('label.print')) { %><a class="btn" href="/labels?ids=<%= p.id %>">라벨 인쇄</a><% } %>
     <% if (can('stock.adjust') && p.tracked) { %><a class="btn" href="/adjust?code=<%= encodeURIComponent(p.barcode) %>">재고 조정</a><% } %>
   </div>
-</div>
+</header>
 
 <div class="cards">
   <div class="stat"><div class="label">판매 가능</div><div class="value"><%= n(p.qty) %></div></div>

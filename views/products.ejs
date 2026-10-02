@@ -1,28 +1,26 @@
 <%- include('partials/head') %>
-<div class="row ac mb8">
-  <div><h1>상품·재고</h1></div>
-  <div class="fit actions">
+<header class="page-head">
+  <div><h1>상품·재고</h1><p class="lead">바코드를 스캔하거나 이름으로 검색하세요.</p></div>
+  <div class="actions">
     <a class="btn" href="/products/export.csv">CSV 내려받기</a>
     <% if (can('label.print')) { %><a class="btn" href="/labels?<%= new URLSearchParams({ q: q, filter: filter }) %>">라벨 인쇄 (검색 결과)</a><% } %>
     <% if (can('product.import')) { %><a class="btn" href="/products/import">상품 가져오기</a><% } %>
-    <% if (can('product.write')) { %><a class="btn pri" href="/products/new">+ 상품 등록</a><% } %>
+    <% if (can('product.write')) { %><a class="btn pri" href="/products/new"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>상품 등록</a><% } %>
   </div>
-</div>
+</header>
 
-<form method="get" action="/products" class="card">
-  <div class="row">
-    <div class="f3">
-      <label for="q">검색 (바코드 · 상품코드 · 상품명)</label>
-      <input id="q" name="q" type="search" value="<%= q %>" placeholder="스캐너로 바코드를 읽거나 이름을 입력" autofocus>
-    </div>
-    <div>
-      <label for="filter">보기</label>
-      <select id="filter" name="filter">
-        <% Object.keys(FILTERS).forEach(function (k) { %><option value="<%= k %>"<%= k === filter ? ' selected' : '' %>><%= FILTERS[k] %></option><% }) %>
-      </select>
-    </div>
-    <div class="fit"><button class="pri" type="submit">검색</button></div>
+<form method="get" action="/products" class="toolbar">
+  <div class="grow">
+    <label for="q">검색 (바코드 · 상품코드 · 상품명)</label>
+    <input id="q" name="q" type="search" value="<%= q %>" placeholder="스캐너로 바코드를 읽거나 이름을 입력" autofocus>
   </div>
+  <div class="field">
+    <label for="filter">보기</label>
+    <select id="filter" name="filter">
+      <% Object.keys(FILTERS).forEach(function (k) { %><option value="<%= k %>"<%= k === filter ? ' selected' : '' %>><%= FILTERS[k] %></option><% }) %>
+    </select>
+  </div>
+  <div class="fit"><button class="pri" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>검색</button></div>
 </form>
 
 <% if (result.rows.length === 0) { %>

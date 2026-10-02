@@ -1,9 +1,8 @@
 <%- include('partials/head') %>
-<h1>재고 조정</h1>
-<p class="muted">실제로 센 수량에 시스템 재고를 맞춥니다. 조정 내용은 사유와 함께 재고 원장에 남습니다.</p>
+<header class="page-head"><div><h1>재고 조정</h1><p class="lead">실제로 센 수량에 시스템 재고를 맞춥니다. 조정 내용은 사유와 함께 재고 원장에 남습니다.</p></div></header>
 
 <form method="get" action="/adjust" class="scanbar">
-  <label for="code" class="small muted mt0">조정할 상품의 바코드 또는 상품코드</label>
+  <label for="code">조정할 상품의 바코드 또는 상품코드</label>
   <input id="code" name="code" type="text" value="<%= code %>" data-scan-input inputmode="numeric" autocomplete="off" aria-label="바코드">
 </form>
 

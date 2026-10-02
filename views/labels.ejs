@@ -1,11 +1,10 @@
 <%- include('partials/head') %>
 <div class="noprint">
-  <h1>라벨 인쇄</h1>
-  <p class="muted">상품에 붙일 EAN-13 바코드 라벨을 만듭니다. 화면 아래의 “인쇄”를 누르고, 인쇄 창에서 <strong>용지 크기를 라벨 크기에 맞추고 여백을 없음</strong>으로 설정하세요.</p>
+  <header class="page-head"><div><h1>라벨 인쇄</h1><p class="lead">상품에 붙일 EAN-13 바코드 라벨을 만듭니다. 미리보기 후 “인쇄”를 누르고, 인쇄 창에서 <strong>용지 크기를 라벨 크기에 맞추고 여백을 없음</strong>으로 설정하세요.</p></div></header>
 
   <form method="get" action="/labels" class="card">
-    <div class="row">
-      <div class="f2"><label for="q">상품 검색 (바코드 · 상품코드 · 상품명)</label><input id="q" name="q" type="search" value="<%= q %>"></div>
+    <div class="form-grid">
+      <div class="span-all"><label for="q">상품 검색 (바코드 · 상품코드 · 상품명)</label><input id="q" name="q" type="search" value="<%= q %>" placeholder="비워 두고 “대상”만 골라도 됩니다"></div>
       <div>
         <label for="filter">대상</label>
         <select id="filter" name="filter"><% Object.keys(FILTERS).forEach(function (k) { %><option value="<%= k %>"<%= k === filter ? ' selected' : '' %>><%= FILTERS[k] %></option><% }) %></select>
@@ -15,15 +14,15 @@
         <select id="size" name="size"><% Object.keys(SIZES).forEach(function (k) { %><option value="<%= k %>"<%= k === size ? ' selected' : '' %>><%= SIZES[k] %></option><% }) %></select>
       </div>
       <div>
-        <label for="copies">장수</label>
+        <label for="copies">장수 방식</label>
         <select id="copies" name="copies">
           <option value="fixed"<%= copiesMode === 'fixed' ? ' selected' : '' %>>상품마다 같은 장수</option>
           <option value="stock"<%= copiesMode === 'stock' ? ' selected' : '' %>>현재 재고 수량만큼</option>
         </select>
       </div>
-      <div><label for="n">장수 (같은 장수일 때)</label><input id="n" name="n" type="number" min="1" max="50" value="<%= fixed %>"></div>
+      <div><label for="n">상품당 장수</label><input id="n" name="n" type="number" min="1" max="50" value="<%= fixed %>"></div>
       <% if (ids) { %><input type="hidden" name="ids" value="<%= ids %>"><% } %>
-      <div class="fit"><button class="pri" type="submit">미리보기</button></div>
+      <div class="span-all"><button class="pri" type="submit">미리보기</button></div>
     </div>
   </form>
 

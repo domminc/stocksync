@@ -1,5 +1,11 @@
 <% if (user) { %>
     </main>
+    <nav class="tabbar" aria-label="빠른 이동">
+      <% tabs.forEach(function (t) { %>
+        <a href="<%= t.href %>"<% if (t.active) { %> class="active" aria-current="page"<% } %>><svg class="ic" aria-hidden="true"><use href="#i-<%= t.icon %>"/></svg><span><%= t.label %></span></a>
+      <% }) %>
+      <label for="nav-toggle" class="tab-more"><svg class="ic" aria-hidden="true"><use href="#i-more"/></svg><span>더보기</span></label>
+    </nav>
   </div>
 </div>
 <% } else { %>
