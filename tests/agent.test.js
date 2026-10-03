@@ -57,3 +57,19 @@ test('중계 프로그램: 상태·CORS(허용 사이트만)·네트워크 프�
     agent.close(); printer.close();
   }
 });
+
+test('중계 프로그램: 주소창으로 열면 실행 중 안내가 보이고(CORS 불필요), 허용 사이트에 www 도 포함', async () => {
+  const { DEFAULT_ORIGINS, VERSION } = await import('../public/print-agent/agent.mjs');
+  assert.ok(DEFAULT_ORIGINS.includes('https://jejubaseball.com') && DEFAULT_ORIGINS.includes('https://www.jejubaseball.com'));
+  const agent = createAgent();
+  const port = await listen(agent);
+  try {
+    const r = await fetch(`http://127.0.0.1:${port}/`);
+    assert.equal(r.status, 200);
+    const html = await r.text();
+    assert.match(html, /실행 중입니다/);
+    assert.ok(html.includes(VERSION) && html.includes('https://jejubaseball.com'));
+    const ok = await fetch(`http://127.0.0.1:${port}/status`, { headers: { origin: 'https://www.jejubaseball.com' } });
+    assert.equal(ok.headers.get('access-control-allow-origin'), 'https://www.jejubaseball.com');
+  } finally { agent.close(); }
+});

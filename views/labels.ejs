@@ -67,7 +67,9 @@
       <button class="pri" type="button" data-act="print">프린터로 출력<%= total ? ' (' + n(total) + '장)' : '' %></button>
       <button type="button" data-act="test">테스트 1장</button>
       <button type="button" data-act="calibrate">용지 감지</button>
+      <button type="button" data-act="diagnose">연결 진단</button>
     </div>
+    <ul class="pr-diag" id="pr-diag" hidden></ul>
     <div class="pr-msg" id="pr-msg" role="status" hidden></div>
     <details class="mt12">
       <summary class="small"><strong>프린터 설정</strong> <span class="muted">— 처음 한 번만</span></summary>

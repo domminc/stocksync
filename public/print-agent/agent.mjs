@@ -12,7 +12,8 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
+export const DEFAULT_ORIGINS = ['https://jejubaseball.com', 'https://www.jejubaseball.com'];
 const MAX_BODY = 32 * 1024 * 1024;
 
 const PS_RAW = `param([string]$Printer,[string]$Path)
@@ -108,7 +109,7 @@ async function listPrinters() {
 }
 
 /** 출력 중계 서버 만들기 (테스트에서도 쓴다) */
-export function createAgent({ origins = ['https://jejubaseball.com'], tmpDir = os.tmpdir() } = {}) {
+export function createAgent({ origins = DEFAULT_ORIGINS, tmpDir = os.tmpdir() } = {}) {
   const allowed = new Set(origins);
   return http.createServer(async (req, res) => {
     const origin = req.headers.origin;
@@ -121,6 +122,11 @@ export function createAgent({ origins = ['https://jejubaseball.com'], tmpDir = o
     if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
     const url = new URL(req.url, 'http://127.0.0.1');
     try {
+      // 이 PC 의 브라우저 주소창에 http://127.0.0.1:9101 을 입력해 프로그램이 실행 중인지 바로 확인할 수 있다
+      if (req.method === 'GET' && url.pathname === '/') {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+        return res.end(`<!doctype html><meta charset="utf-8"><title>StockSync 출력 프로그램</title><body style="font:16px sans-serif;padding:24px"><h2>StockSync 출력 프로그램이 실행 중입니다 ✅</h2><p>버전 ${VERSION} · 허용 사이트: ${[...allowed].join(', ')}</p><p>이 창은 닫아도 됩니다. 사이트의 라벨 화면에서 “프린터로 출력”을 누르세요.</p></body>`);
+      }
       if (req.method === 'GET' && url.pathname === '/status') return json(res, 200, { ok: true, name: 'stocksync-print-agent', version: VERSION, platform: process.platform }, cors);
       if (req.method === 'GET' && url.pathname === '/printers') return json(res, 200, { ok: true, printers: await listPrinters() }, cors);
       if (req.method === 'POST' && url.pathname === '/print') {
@@ -150,7 +156,7 @@ export function createAgent({ origins = ['https://jejubaseball.com'], tmpDir = o
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.AGENT_PORT || 9101);
-  const origins = (process.env.AGENT_ORIGINS || 'https://jejubaseball.com').split(',').map((s) => s.trim()).filter(Boolean);
+  const origins = (process.env.AGENT_ORIGINS || DEFAULT_ORIGINS.join(',')).split(',').map((s) => s.trim()).filter(Boolean);
   createAgent({ origins }).listen(port, '127.0.0.1', () => {
     console.log(`StockSync 출력 프로그램 ${VERSION} 실행 중: http://127.0.0.1:${port}`);
     console.log(`허용 사이트: ${origins.join(', ')}`);

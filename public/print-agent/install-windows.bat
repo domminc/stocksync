@@ -6,16 +6,27 @@ set "DIR=%USERPROFILE%\StockSyncPrint"
 
 where node >nul 2>nul
 if errorlevel 1 (
-  echo Node.js is required. Installing Node.js LTS with winget...
+  echo.
+  echo [1/4] Node.js is required but was not found.
+  where winget >nul 2>nul
+  if errorlevel 1 (
+    echo winget is not available on this PC.
+    echo Please install Node.js LTS manually from https://nodejs.org , then run this file again.
+    start "" https://nodejs.org/en/download
+    pause
+    exit /b 1
+  )
+  echo Installing Node.js LTS with winget...
   winget install -e --id OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
   echo.
-  echo Node.js was installed. Close this window and run install-windows.bat once more.
+  echo Node.js was installed. CLOSE this window and run install-windows.bat once more.
   pause
   exit /b 0
 )
 
+echo [1/4] Node.js found.
 if not exist "%DIR%" mkdir "%DIR%"
-echo Downloading agent from %SITE% ...
+echo [2/4] Downloading agent from %SITE% ...
 powershell -NoProfile -Command "Invoke-WebRequest -UseBasicParsing '%SITE%/static/print-agent/agent.mjs' -OutFile '%DIR%\agent.mjs'"
 if errorlevel 1 (
   echo Download failed. Check the internet connection and try again.
@@ -26,14 +37,24 @@ if errorlevel 1 (
 > "%DIR%\start.bat" echo @echo off
 >> "%DIR%\start.bat" echo cd /d "%DIR%"
 >> "%DIR%\start.bat" echo node agent.mjs
+rem For troubleshooting: shows errors in a window
+> "%DIR%\start-visible.bat" echo @echo off
+>> "%DIR%\start-visible.bat" echo cd /d "%DIR%"
+>> "%DIR%\start-visible.bat" echo node agent.mjs
+>> "%DIR%\start-visible.bat" echo pause
 
-rem Run automatically at Windows login, without a console window
+echo [3/4] Registering auto start at Windows login...
 > "%DIR%\hidden-start.vbs" echo CreateObject("Wscript.Shell").Run """%DIR%\start.bat""", 0, False
 copy /y "%DIR%\hidden-start.vbs" "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\StockSyncPrint.vbs" >nul
 
-echo Starting the agent now...
+rem Stop an older copy that may still be running, then start the new one
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter 'Name=''node.exe''' | Where-Object { $_.CommandLine -like '*agent.mjs*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" >nul 2>nul
+echo [4/4] Starting the agent and checking it...
 wscript "%DIR%\hidden-start.vbs"
+timeout /t 3 /nobreak >nul
+powershell -NoProfile -Command "try { $r = Invoke-RestMethod http://127.0.0.1:9101/status -TimeoutSec 5; Write-Host ('OK: agent v' + $r.version + ' is running.') -ForegroundColor Green } catch { Write-Host 'NOT RUNNING. Double-click start-visible.bat in the folder below to see the error.' -ForegroundColor Red }"
+echo Folder: %DIR%
 echo.
-echo Done. The print agent runs in the background and starts automatically with Windows.
-echo Open the Labels page in StockSync and press the printer button.
+echo Open the Labels page in StockSync with Chrome or Edge and press the printer button.
+echo (If Chrome asks to allow access to devices on your local network, press Allow.)
 pause

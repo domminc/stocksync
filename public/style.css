@@ -567,3 +567,9 @@ a.mbrand:hover { text-decoration: none; }
 .danger-card > summary::-webkit-details-marker { display: none; }
 .danger-card > summary::before { content: "＋"; font-weight: 700; margin-right: 2px; }
 .danger-card[open] > summary::before { content: "－"; }
+
+.pr-diag { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.pr-diag li { padding: 8px 12px; border-radius: var(--r-sm); line-height: 1.5; }
+.pr-diag li.ok { background: var(--ok-soft); color: var(--ok); }
+.pr-diag li.err { background: var(--err-soft); color: var(--err); }
+.pr-diag[hidden] { display: none; }
