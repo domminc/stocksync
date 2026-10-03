@@ -326,6 +326,7 @@ dl.kv dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .size-50x30 .label { width: 50mm; height: 30mm; }
 .size-40x25 .label { width: 40mm; height: 25mm; }
 .size-a4 .label { width: 62mm; height: 32mm; }
+.label-price { font-size: 15pt; line-height: 1.1; font-weight: 800; text-align: center; color: #000; letter-spacing: -.01em; }
 .label-name { font-size: 7.5pt; line-height: 1.15; font-weight: 700; max-height: 2.4em; overflow: hidden; color: #000; }
 .label-opt { font-size: 6.5pt; line-height: 1.1; max-height: 1.2em; overflow: hidden; color: #000; }
 .labels .label .barcode { width: 100%; height: auto; max-height: 62%; flex: 0 1 auto; }
@@ -543,3 +544,12 @@ td.sel input, th.selcol input { margin: 0; }
 .chip.stopped { background: var(--surface-2); color: var(--muted); border: 1px dashed var(--line-strong); }
 tr.inactive td { opacity: .55; }
 tr.inactive td.sel, tr.inactive td.sel * { opacity: 1; }
+
+/* 프린터 직접 출력 */
+.printer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.printer-card summary { cursor: pointer; }
+.pr-msg { margin-top: 12px; padding: 10px 14px; border-radius: var(--r-sm); font-weight: 600; font-size: 14px; }
+.pr-msg.ok { background: var(--ok-soft); color: var(--ok); }
+.pr-msg.err { background: var(--err-soft); color: var(--err); }
+.pr-msg[hidden] { display: none; }
+.printer-card [data-mode][hidden] { display: none; }

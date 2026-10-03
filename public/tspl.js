@@ -48,6 +48,35 @@ const header = ({ widthMm, heightMm, gapMm = 2, media = 'gap', density = 8, spee
   return lines;
 };
 
+/**
+ * 라벨 안의 배치 계산 (점 단위). 가격 → (선택) 상품명 → 바코드 순서로 위에서 아래로 쌓고,
+ * 바코드 아래 사람이 읽는 숫자(약 28점)까지 라벨 안에 들어오도록 바코드 높이를 맞춘다.
+ */
+export function labelLayout(widthMm, heightMm, { showName = false, showPrice = true } = {}) {
+  const W = mmToDots(widthMm);
+  const H = mmToDots(heightMm);
+  const small = H < 220; // 40×25mm 처럼 작은 라벨
+  const nameFont = small ? 20 : 24;
+  const priceFont = small ? 34 : 44;
+  const nameH = showName ? Math.round(nameFont * 2.3) : 0; // 두 줄
+  const priceH = showPrice ? Math.round(priceFont * 1.25) : 0;
+  const textH = nameH + priceH;
+  const textW = Math.floor((W - 16) / 8) * 8;
+  const HUMAN = 28;
+  let barcodeY = textH ? 6 + textH + 4 : 8;
+  let barcodeH = Math.max(30, Math.min(110, H - barcodeY - HUMAN - 4));
+  if (!textH) barcodeY = Math.max(8, Math.round((H - barcodeH - HUMAN) / 2)); // 바코드만이면 세로 가운데
+  return { W, H, textX: Math.round((W - textW) / 2), textY: 6, textW, textH, nameFont, priceFont, nameH, priceH, barcodeY, barcodeH };
+}
+
+/** Code 128 의 총 칸 수 (src/lib/barcodes.js 의 code128Bits 길이와 같아야 한다 — 테스트로 확인) */
+export function code128Modules(value) {
+  const s = String(value);
+  const digits = /^\d+$/.test(s) && s.length >= 4;
+  const symbols = digits ? (s.length % 2 ? 3 + (s.length - 1) / 2 : 1 + s.length / 2) + 1 : 1 + s.length + 1;
+  return symbols * 11 + 13;
+}
+
 const clampInt = (v, lo, hi, d) => { const n = Number.parseInt(v, 10); return Number.isFinite(n) ? Math.min(Math.max(n, lo), hi) : d; };
 
 /** 라벨 1종 × 장수(copies) 를 인쇄하는 명령어 묶음 */
@@ -67,13 +96,16 @@ export function buildLabelJob(opts) {
     const narrow = clampInt(b.narrow, 1, 6, 3);
     const height = clampInt(b.height, 20, 200, 80);
     const human = b.human === false ? 0 : 1;
-    if (/^\d{13}$/.test(value)) {
+    if (b.kind === 'ean13' && /^\d{13}$/.test(value)) {
       // EAN-13: 12자리만 보내면 프린터가 체크디지트를 계산한다 (우리 번호는 항상 올바른 13자리)
       const widthDots = 95 * narrow;
       const x = b.x ?? Math.max(0, Math.round((mmToDots(o.widthMm) - widthDots) / 2));
       parts.push(enc.encode(`BARCODE ${x},${b.y},"EAN13",${height},${human},0,${narrow},${narrow * 2},"${value.slice(0, 12)}"\r\n`));
     } else {
-      parts.push(enc.encode(`BARCODE ${b.x ?? 16},${b.y},"128",${height},${human},0,${Math.min(narrow, 2)},${Math.min(narrow, 2) * 2},"${value}"\r\n`));
+      // Code 128 (프린터가 A/B/C 코드셋을 자동 선택). 가는 선 2점(0.25mm) 이하로 두어 라벨 폭 안에 들어가게 한다.
+      const n128 = Math.min(narrow, 2);
+      const x = b.x ?? Math.max(0, Math.round((mmToDots(o.widthMm) - code128Modules(value) * n128) / 2));
+      parts.push(enc.encode(`BARCODE ${x},${b.y},"128",${height},${human},0,${n128},${n128 * 2},"${value}"\r\n`));
     }
   }
   parts.push(enc.encode(`PRINT 1,${copies}\r\n`));

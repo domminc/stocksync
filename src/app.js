@@ -23,7 +23,7 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 // 화면 파일(CSS/JS)이 바뀌면 주소의 ?v= 값도 바뀌어, 브라우저가 예전 파일을 캐시로 쓰지 않게 한다.
 function assetVersion() {
   const h = crypto.createHash('sha1');
-  for (const f of ['style.css', 'app.js']) {
+  for (const f of ['style.css', 'app.js', 'tspl.js', 'label-print.js']) {
     try { h.update(fs.readFileSync(path.join(root, 'public', f))); } catch { /* 없으면 건너뜀 */ }
   }
   return h.digest('hex').slice(0, 10);
@@ -87,7 +87,7 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
 
   app.use((req, res, next) => {
     res.set({
-      'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+      'Content-Security-Policy': "default-src 'self'; connect-src 'self' http://127.0.0.1:9101 http://localhost:9101; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'same-origin',

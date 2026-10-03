@@ -224,7 +224,7 @@ export function updateSelected(db, ids, { safety, active } = {}) {
 
 /** 라벨을 인쇄할 상품들: ids 가 있으면 그 상품, 없으면 검색 조건에 맞는 상품 (최대 limit 개) */
 export function labelTargets(db, { ids = [], q = '', filter = '', limit = 1000 } = {}) {
-  const select = `SELECT p.id, p.barcode, p.name, p.option_name, p.sku_code, p.label_printed_at, COALESCE(i.qty, 0) AS qty ${FROM}`;
+  const select = `SELECT p.id, p.barcode, p.name, p.option_name, p.sku_code, p.price, p.label_printed_at, COALESCE(i.qty, 0) AS qty ${FROM}`;
   if (ids.length) {
     const marks = ids.map(() => '?').join(',');
     return db.prepare(`${select} WHERE p.id IN (${marks}) ORDER BY p.id LIMIT ?`).all(...ids, limit);

@@ -1,6 +1,6 @@
 <%- include('partials/head') %>
 <div class="noprint">
-  <header class="page-head"><div><h1>라벨 인쇄</h1><p class="lead">상품에 붙일 EAN-13 바코드 라벨을 만듭니다. 미리보기 후 “인쇄”를 누르고, 인쇄 창에서 <strong>용지 크기를 라벨 크기에 맞추고 여백을 없음</strong>으로 설정하세요.</p></div></header>
+  <header class="page-head"><div><h1>라벨 인쇄</h1><p class="lead">상품에 붙일 바코드 라벨(기본: 가격 + 바코드)을 만듭니다. 미리보기 후 “인쇄”를 누르고, 인쇄 창에서 <strong>용지 크기를 라벨 크기에 맞추고 여백을 없음</strong>으로 설정하세요.</p></div></header>
 
   <form method="get" action="/labels" class="card">
     <div class="form-grid">
@@ -21,9 +21,17 @@
         </select>
       </div>
       <div>
+        <label for="lf">라벨에 넣을 내용</label>
+        <select id="lf" name="lf">
+          <option value="price"<%= lf === 'price' ? ' selected' : '' %>>가격 + 바코드 (기본)</option>
+          <option value="price_name"<%= lf === 'price_name' ? ' selected' : '' %>>상품명 + 가격</option>
+          <option value="barcode"<%= lf === 'barcode' ? ' selected' : '' %>>바코드만</option>
+        </select>
+      </div>
+      <div>
         <label for="bc">바코드 종류</label>
         <select id="bc" name="bc">
-          <option value="code128"<%= bc === 'code128' ? ' selected' : '' %>>Code 128 (권장 · 대부분 스캐너)</option>
+          <option value="code128"<%= bc === 'code128' ? ' selected' : '' %>>Code 128 (권장)</option>
           <option value="ean13"<%= bc === 'ean13' ? ' selected' : '' %>>EAN-13</option>
         </select>
       </div>
@@ -49,15 +57,55 @@
     <% if (truncated) { %><div class="notice mt12">한 번에 최대 <%= n(3000) %>장까지만 만듭니다. 나머지는 “라벨 미출력만”으로 다시 조회하세요.</div><% } %>
     <% if (copiesMode === 'stock' && total === 0) { %><div class="notice mt12">재고가 0인 상품은 라벨이 만들어지지 않습니다.</div><% } %>
   <% } %>
+  <section class="card printer-card" id="printer-panel" data-size="<%= size %>" data-fields="<%= lf %>" data-bc="<%= bc %>">
+    <div class="printer-head">
+      <strong>프린터로 바로 출력</strong>
+      <span class="chip" id="pr-status">확인 중…</span>
+    </div>
+    <p class="small muted">라벨 프린터(XP-DT427B)가 연결된 <strong>매장 PC</strong>에서 이 화면을 열고 누르면 팝업 없이 바로 출력됩니다. 처음 한 번 <a href="/static/print-agent/install-windows.bat" download>출력 프로그램 설치 파일</a>을 받아 실행하세요. (설명: <a href="/static/print-agent/README.txt" target="_blank" rel="noopener">설치 안내</a>)</p>
+    <div class="actions mt12">
+      <button class="pri" type="button" data-act="print">프린터로 출력<%= total ? ' (' + n(total) + '장)' : '' %></button>
+      <button type="button" data-act="test">테스트 1장</button>
+      <button type="button" data-act="calibrate">용지 감지</button>
+    </div>
+    <div class="pr-msg" id="pr-msg" role="status" hidden></div>
+    <details class="mt12">
+      <summary class="small"><strong>프린터 설정</strong> <span class="muted">— 처음 한 번만</span></summary>
+      <div class="form-grid mt8">
+        <div>
+          <label for="pr-mode">연결 방식</label>
+          <select id="pr-mode"><option value="windows">윈도우 프린터 (USB 등)</option><option value="network">네트워크 IP</option></select>
+        </div>
+        <div data-mode="windows">
+          <label for="pr-printer">프린터 이름</label>
+          <input id="pr-printer" type="text" list="pr-printer-list" placeholder="예: Xprinter XP-DT427B" autocomplete="off">
+          <datalist id="pr-printer-list"></datalist>
+        </div>
+        <div data-mode="windows"><label>&nbsp;</label><button type="button" data-act="printers">설치된 프린터 불러오기</button></div>
+        <div data-mode="network"><label for="pr-host">프린터 IP</label><input id="pr-host" type="text" inputmode="decimal" placeholder="예: 192.168.0.50" autocomplete="off"></div>
+        <div data-mode="network"><label for="pr-port">포트</label><input id="pr-port" type="number" min="1" max="65535" value="9100"></div>
+        <div><label for="pr-gap">라벨 사이 간격 (mm)</label><input id="pr-gap" type="number" min="0" max="10" step="0.5" value="2"></div>
+        <div><label for="pr-density">농도 (0~15)</label><input id="pr-density" type="number" min="0" max="15" value="8"></div>
+        <div><label for="pr-speed">속도 (1~8)</label><input id="pr-speed" type="number" min="1" max="8" value="4"></div>
+        <div><label for="pr-narrow">바코드 가는 선 (점)</label><select id="pr-narrow"><option value="2">2점 (Code 128 권장)</option><option value="3">3점 (EAN-13 권장)</option></select></div>
+        <div class="span-all checks">
+          <label><input type="checkbox" id="pr-reverse"> 출력 방향 180도 돌리기</label>
+          <label><input type="checkbox" id="pr-invert"> 글자 흑백 반전 (글자가 하얗게 나올 때)</label>
+        </div>
+        <div class="span-all"><label for="pr-agent">출력 프로그램 주소</label><input id="pr-agent" type="text" value="http://127.0.0.1:9101"></div>
+      </div>
+    </details>
+  </section>
 </div>
 
-<div class="labels size-<%= size %>">
+<div class="labels size-<%= size %>" data-size="<%= size %>" data-fields="<%= lf %>" data-bc="<%= bc %>">
   <% items.forEach(function (it) { for (var k = 0; k < it.count; k++) { %>
-  <div class="label" data-barcode="<%= it.p.barcode %>">
-    <div class="label-name"><%= it.p.name %></div>
-    <% if (it.p.option_name) { %><div class="label-opt"><%= it.p.option_name %></div><% } %>
+  <div class="label" data-barcode="<%= it.p.barcode %>" data-price="<%= it.p.price ?? '' %>">
+    <% if (lf === 'price_name') { %><div class="label-name"><%= it.p.name %></div><% } %>
+    <% if (lf !== 'barcode' && it.p.price !== null && it.p.price !== undefined) { %><div class="label-price"><%= n(it.p.price) %>원</div><% } %>
     <%- barcodeSvg(it.p.barcode, bc) %>
   </div>
   <% } }) %>
 </div>
+<script type="module" src="/static/label-print.js?v=<%= assetV %>"></script>
 <%- include('partials/foot') %>

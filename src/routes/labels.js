@@ -18,6 +18,10 @@ export function registerLabels(app, { db, guard }) {
     const filter = Object.hasOwn(FILTERS, req.query.filter) ? String(req.query.filter) : '';
     const size = Object.hasOwn(SIZES, req.query.size) ? String(req.query.size) : '50x30';
     const copiesMode = req.query.copies === 'stock' ? 'stock' : 'fixed';
+    const FIELD_MODES = ['price', 'price_name', 'barcode'];
+    const askedLf = FIELD_MODES.includes(req.query.lf) ? req.query.lf : '';
+    const lf = askedLf || (FIELD_MODES.includes(req.cookies?.llf) ? req.cookies.llf : 'price');
+    if (askedLf) res.append('Set-Cookie', `llf=${askedLf}; Path=/; Max-Age=31536000; SameSite=Lax`);
     const asked = ['code128', 'ean13'].includes(req.query.bc) ? req.query.bc : '';
     const bc = asked || (['code128', 'ean13'].includes(req.cookies?.lbc) ? req.cookies.lbc : 'code128');
     if (asked) res.append('Set-Cookie', `lbc=${asked}; Path=/; Max-Age=31536000; SameSite=Lax`);
@@ -35,7 +39,7 @@ export function registerLabels(app, { db, guard }) {
       total = MAX_LABELS;
     }
     res.render('labels', {
-      title: '라벨 인쇄', SIZES, FILTERS, size, copiesMode, fixed, bc, q, filter, ids: ids.join(','), hasSelection,
+      title: '라벨 인쇄', SIZES, FILTERS, size, copiesMode, fixed, bc, lf, q, filter, ids: ids.join(','), hasSelection,
       items, total, truncated, productCount: targets.length,
     });
   });

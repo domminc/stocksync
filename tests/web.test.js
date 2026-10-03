@@ -10,12 +10,19 @@ import { createUser, minPasswordLength, validatePassword } from '../src/lib/auth
 let db, server, base;
 
 class Client {
-  constructor() { this.cookie = ''; this.csrf = ''; }
+  constructor() { this.jar = new Map(); this.csrf = ''; }
+
+  get cookie() { return [...this.jar].map(([k, v]) => `${k}=${v}`).join('; '); }
 
   async fetch(path, opts = {}) {
     const res = await fetch(base + path, { redirect: 'manual', ...opts, headers: { cookie: this.cookie, ...(opts.headers ?? {}) } });
-    const set = res.headers.get('set-cookie');
-    if (set) this.cookie = set.split(';')[0].replace(/^sid=$/, '');
+    for (const line of res.headers.getSetCookie()) {
+      const [pair] = line.split(';');
+      const i = pair.indexOf('=');
+      const name = pair.slice(0, i);
+      const value = pair.slice(i + 1);
+      if (value === '') this.jar.delete(name); else this.jar.set(name, value); // 비어 있으면 삭제(로그아웃)
+    }
     return res;
   }
 
@@ -349,7 +356,16 @@ test('상품 등록 화면: 바코드를 비우면 자체 바코드가 발급되
   assert.equal((page.match(/class="label"/g) || []).length, 3, '3장');
   assert.equal((page.match(/<svg class="barcode"/g) || []).length, 3);
   assert.ok(page.includes(`aria-label="바코드 ${p.barcode}"`));
-  assert.ok(page.includes('자동 발급 테스트 글러브'));
+  assert.ok(!page.includes('class="label-name"'), '기본 라벨에는 상품명이 없다 (가격+바코드)');
+  const withName = await (await c.get(`/labels?ids=${id}&n=1&lf=price_name`)).text();
+  assert.ok(withName.includes('class="label-name"') && withName.includes('자동 발급 테스트 글러브'));
+  // 가격이 있으면 라벨에 가격이 나온다
+  db.prepare('UPDATE products SET price = 12900 WHERE id = ?').run(id);
+  const priced = await (await c.get(`/labels?ids=${id}&n=1&lf=price`)).text();
+  assert.match(priced, /class="label-price">12,900원</);
+  assert.match(priced, /data-price="12900"/);
+  const only = await (await c.get(`/labels?ids=${id}&n=1&lf=barcode`)).text();
+  assert.ok(!only.includes('class="label-price"') && !only.includes('class="label-name"'));
   // 출력 완료 표시
   assert.equal(db.prepare('SELECT label_printed_at FROM products WHERE id = ?').get(id).label_printed_at, null);
   const done = await c.post('/labels/printed', { ids: String(id) });
