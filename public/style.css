@@ -553,3 +553,11 @@ tr.inactive td.sel, tr.inactive td.sel * { opacity: 1; }
 .pr-msg.err { background: var(--err-soft); color: var(--err); }
 .pr-msg[hidden] { display: none; }
 .printer-card [data-mode][hidden] { display: none; }
+
+/* 로고는 대시보드로 가는 링크 (메뉴 항목 스타일과 분리) */
+.side a.brand { padding: 4px 8px 20px; min-height: 0; gap: 12px; color: var(--ink); border-radius: 0; font-weight: inherit; }
+.side a.brand:hover { background: none; color: var(--ink); }
+.side a.brand:hover .logo { filter: brightness(1.08); }
+a.mbrand { color: var(--ink); text-decoration: none; }
+a.mbrand:hover { text-decoration: none; }
+.side a.brand .logo .ic { color: #fff; }

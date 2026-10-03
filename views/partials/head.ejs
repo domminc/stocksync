@@ -16,7 +16,7 @@
 <div class="shell">
   <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="메뉴 열기/닫기">
   <aside class="side" id="side-nav">
-    <div class="brand"><span class="logo" aria-hidden="true"><svg class="ic"><use href="#i-scan"/></svg></span><span><span class="brand-name">StockSync</span><span class="brand-sub">통합 재고관리</span></span></div>
+    <a class="brand" href="/" aria-label="StockSync 대시보드로 이동"><span class="logo" aria-hidden="true"><svg class="ic"><use href="#i-scan"/></svg></span><span><span class="brand-name">StockSync</span><span class="brand-sub">통합 재고관리</span></span></a>
     <nav class="side-nav" aria-label="주 메뉴">
     <% nav.forEach(function (g) { %>
       <div class="nav-group"><%= g.group %></div>
@@ -36,7 +36,7 @@
   <div class="main-wrap">
     <header class="topbar">
       <label for="nav-toggle" class="menu-btn" aria-label="메뉴"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg><span class="menu-text">메뉴</span></label>
-      <span class="mbrand">StockSync</span>
+      <a class="mbrand" href="/" aria-label="StockSync 대시보드로 이동">StockSync</a>
       <span class="spacer"></span>
       <details class="usermenu userinfo">
         <summary><span class="avatar" aria-hidden="true"><%= user.displayName.slice(0, 1) %></span><span class="uname"><strong><%= user.displayName %></strong><span class="role"><%= ROLES[user.role] %></span></span><svg class="ic sm" aria-hidden="true"><use href="#i-chev"/></svg></summary>
