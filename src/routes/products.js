@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  listProducts, getProduct, createProduct, updateProduct, importProducts, setSafetyStock, setSafetyStockMany, setActiveMany, PRODUCT_CSV_TEMPLATE, ValidationError,
+  listProducts, getProduct, createProduct, updateProduct, importProducts, setSafetyStock, setSafetyStockMany, setActiveMany, updateSelected, PRODUCT_CSV_TEMPLATE, ValidationError,
 } from '../lib/products.js';
 import { resolveHold } from '../lib/inventory.js';
 import { decodeText, csvCell } from '../lib/csv.js';
@@ -12,7 +12,7 @@ const int = (v, d) => {
   return Number.isFinite(n) ? n : d;
 };
 
-const FILTERS = { '': '전체', out: '품절', low: '부족', hold: '보류 있음', risk: '주문 > 가용 (오버셀 위험)', unprinted: '라벨 미출력' };
+const FILTERS = { '': '전체', out: '품절', low: '부족', hold: '보류 있음', risk: '주문 > 가용 (오버셀 위험)', unprinted: '라벨 미출력', inactive: '사용 중지' };
 
 const CSV_HEADER = ['바코드', '상품코드', '상품명', '옵션', '분류', '판매가', '안전재고', '재고관리', '가용재고', '보류', '미출고주문'];
 
@@ -22,7 +22,7 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
     const filter = Object.hasOwn(FILTERS, req.query.filter) ? String(req.query.filter) : '';
     const result = listProducts(db, { q, filter, page: int(req.query.page, 1), pageSize: pageSizeFor(req) });
     const base = (page) => `/products?${new URLSearchParams({ q, filter, page: String(page) })}`;
-    res.render('products', { title: '상품·재고', q, filter, FILTERS, result, pageUrl: base });
+    res.render('products', { title: '상품·재고', q, filter, FILTERS, result, pageUrl: base, returnTo: base(result.page) });
   });
 
   app.get('/products/export.csv', guard('view'), (req, res) => {
@@ -117,6 +117,26 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
       res.redirectWith(target, `상품 ${r.count.toLocaleString('ko-KR')}개의 안전재고를 ${r.value}개로 바꿨습니다.`);
     } catch (e) {
       if (e instanceof ValidationError) return res.redirectWith(target, e.message, 'err');
+      throw e;
+    }
+  });
+
+  // 체크한 상품들에 안전재고 설정 / 사용 중지 / 다시 사용
+  app.post('/products/bulk-selected', guard('product.write'), (req, res) => {
+    const ids = [].concat(req.body.ids ?? []).map((v) => int(v, 0)).filter((n) => n > 0);
+    const back = (() => { const r = String(req.body.return_to ?? ''); return r.startsWith('/products') && !r.startsWith('//') ? r : '/products'; })();
+    if (!ids.length) return res.redirectWith(back, '상품을 먼저 체크하세요.', 'err');
+    const action = String(req.body.action ?? '');
+    try {
+      let r; let text;
+      if (action === 'safety') { r = updateSelected(db, ids, { safety: req.body.safety_stock }); text = `선택한 상품 ${r.count}개의 안전재고를 ${r.value}개로 바꿨습니다.`; }
+      else if (action === 'deactivate') { r = updateSelected(db, ids, { active: false }); text = `선택한 상품 ${r.count}개를 사용 중지로 바꿨습니다.`; }
+      else if (action === 'activate') { r = updateSelected(db, ids, { active: true }); text = `선택한 상품 ${r.count}개를 다시 사용으로 바꿨습니다.`; }
+      else return res.redirectWith(back, '알 수 없는 작업입니다.', 'err');
+      audit(db, req.user.id, 'product.bulk_selected', `${action} count=${r.count}${r.value !== undefined ? ` value=${r.value}` : ''}`);
+      res.redirectWith(back, text);
+    } catch (e) {
+      if (e instanceof ValidationError) return res.redirectWith(back, e.message, 'err');
       throw e;
     }
   });

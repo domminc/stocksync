@@ -63,7 +63,7 @@
 <% } %>
 <% if (can('order.ship') && (status === '' || status === 'pending') && bulkAll > 0) { %>
 <div class="sticky-confirm bulkbar">
-  <form id="bulk" method="post" action="/orders/ship-bulk" class="bulk-sel" data-confirm="" data-confirm-tpl="선택한 {n}건을 출고확정합니다. 재고가 차감됩니다. 계속할까요?">
+  <form id="bulk" method="post" action="/orders/ship-bulk" class="bulk-sel" data-select data-confirm="" data-confirm-tpl="선택한 {n}건을 출고확정합니다. 재고가 차감됩니다. 계속할까요?">
     <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="return_to" value="<%= returnTo %>"><input type="hidden" name="mode" value="selected">
     <label class="checkline"><input type="checkbox" data-check-all> 이 쪽 전체</label>
     <span><span class="count" data-sel-count>0</span>건 선택</span>

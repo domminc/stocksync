@@ -156,6 +156,7 @@ function buildWhere({ q = '', filter = '' }) {
   else if (filter === 'low') where.push('p.tracked = 1 AND p.safety_stock > 0 AND COALESCE(i.qty, 0) > 0 AND COALESCE(i.qty, 0) <= p.safety_stock');
   else if (filter === 'hold') where.push('COALESCE(i.hold, 0) > 0');
   else if (filter === 'unprinted') where.push('p.label_printed_at IS NULL AND p.active = 1');
+  else if (filter === 'inactive') where.push('p.active = 0');
   else if (filter === 'risk') {
     where.push(`p.tracked = 1 AND (SELECT COALESCE(SUM(o.qty), 0) FROM order_lines o WHERE o.product_id = p.id AND o.status = 'pending') > COALESCE(i.qty, 0)`);
   }
@@ -206,6 +207,19 @@ export function setActiveMany(db, { q = '', filter = '' } = {}, active) {
   const { whereSql, params } = buildWhere({ q, filter });
   const r = db.prepare(`UPDATE products SET active = ?, updated_at = ? WHERE id IN (SELECT p.id ${FROM} ${whereSql})`).run(active ? 1 : 0, nowIso(), ...params);
   return { count: Number(r.changes) };
+}
+
+/** 체크한 상품들(ids)에 안전재고/사용 여부를 적용한다. 바뀐 개수를 돌려준다. */
+export function updateSelected(db, ids, { safety, active } = {}) {
+  const list = [...new Set(ids.map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 2000);
+  if (!list.length) return { count: 0 };
+  const marks = list.map(() => '?').join(',');
+  const now = nowIso();
+  if (safety !== undefined) {
+    const n = parseSafetyStock(safety);
+    return { count: Number(db.prepare(`UPDATE products SET safety_stock = ?, updated_at = ? WHERE id IN (${marks})`).run(n, now, ...list).changes), value: n };
+  }
+  return { count: Number(db.prepare(`UPDATE products SET active = ?, updated_at = ? WHERE id IN (${marks})`).run(active ? 1 : 0, now, ...list).changes) };
 }
 
 /** 라벨을 인쇄할 상품들: ids 가 있으면 그 상품, 없으면 검색 조건에 맞는 상품 (최대 limit 개) */

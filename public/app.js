@@ -66,29 +66,40 @@
     });
   });
 
-  // 주문 일괄 출고확정: 체크박스 선택 개수에 맞춰 버튼과 확인 문구를 갱신한다.
-  var bulk = document.getElementById('bulk');
-  if (bulk) {
-    var boxes = function () { return Array.prototype.slice.call(document.querySelectorAll('input[name=ids][form=bulk]:not(:disabled)')); };
-    var countEl = bulk.querySelector('[data-sel-count]');
-    var go = bulk.querySelector('[data-needs-selection]');
-    var tpl = bulk.getAttribute('data-confirm-tpl') || '';
-    var all = document.querySelector('[data-check-all]');
+  // 체크박스 선택 → 일괄 처리 (form[data-select]): 선택 개수에 맞춰 버튼을 켜고 확인 문구를 갱신한다.
+  document.querySelectorAll('form[data-select]').forEach(function (form) {
+    var id = form.id;
+    var boxes = function () { return Array.prototype.slice.call(document.querySelectorAll('input[name=ids][form=' + id + ']:not(:disabled)')); };
+    var countEl = form.querySelector('[data-sel-count]');
+    var goBtns = form.querySelectorAll('[data-needs-selection]');
+    var tpl = form.getAttribute('data-confirm-tpl') || '';
+    var all = form.querySelector('[data-check-all]');
     var refresh = function () {
       var list = boxes();
       var n = list.filter(function (c) { return c.checked; }).length;
       if (countEl) countEl.textContent = String(n);
-      if (go) go.disabled = n === 0;
-      bulk.setAttribute('data-confirm', tpl.replace('{n}', String(n)));
+      goBtns.forEach(function (b) { b.disabled = n === 0; });
+      if (tpl) form.setAttribute('data-confirm', tpl.replace('{n}', String(n)));
       if (all) { all.checked = n > 0 && n === list.length; all.indeterminate = n > 0 && n < list.length; }
+      return n;
     };
     document.addEventListener('change', function (e) {
       var t = e.target;
       if (t === all) { boxes().forEach(function (c) { c.checked = all.checked; }); refresh(); }
-      else if (t && t.name === 'ids' && t.getAttribute('form') === 'bulk') refresh();
+      else if (t && t.name === 'ids' && t.getAttribute('form') === id) refresh();
     });
+    // 버튼마다 확인 문구가 다른 경우: 누르는 순간 선택 개수를 넣는다
+    form.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest && e.target.closest('[data-confirm-tpl]');
+      if (b && b !== form) form.setAttribute('data-confirm', b.getAttribute('data-confirm-tpl').replace('{n}', String(refresh())));
+      var go = e.target && e.target.closest && e.target.closest('[data-labels-go]');
+      if (go) {
+        var ids = boxes().filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+        if (ids.length) location.href = '/labels?ids=' + ids.join(',');
+      }
+    }, true);
     refresh();
-  }
+  });
 
   // 라벨 인쇄
   document.addEventListener('click', function (e) {

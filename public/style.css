@@ -525,3 +525,16 @@ td.sel input, th.selcol input { margin: 0; }
 .bulk-safety > summary::-webkit-details-marker { display: none; }
 .bulk-safety > summary::before { content: "＋"; color: var(--pri); font-weight: 700; margin-right: 2px; }
 .bulk-safety[open] > summary::before { content: "－"; }
+
+/* 상품 목록 선택 바 */
+.bulk-multi { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 0; width: 100%; }
+.bulk-multi .checkline { font-weight: 600; font-size: 13px; }
+.bulk-multi .sel-count { white-space: nowrap; }
+.bulk-multi .inline-edit .qty-input { width: 110px !important; text-align: left; }
+@media screen and (max-width: 640px) {
+  .bulk-multi { gap: 8px; }
+  .bulk-multi > button { flex: 1 1 calc(50% - 4px); min-height: 40px; }
+  .bulk-multi .inline-edit { flex: 1 1 100%; }
+  .bulk-multi .inline-edit .qty-input { flex: 1 1 auto; }
+  .bulk-multi .inline-edit button { flex: 1 1 auto; }
+}

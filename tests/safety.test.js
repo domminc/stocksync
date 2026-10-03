@@ -65,9 +65,24 @@ test('HTTP: 상세 저장·일괄 적용·권한·CSRF', async () => {
     const detail = await (await fetch(`${base}/products/${id}`, { headers: { cookie: admin.cookie } })).text();
     assert.match(detail, /action="\/products\/\d+\/safety"/);
     const list = await (await fetch(`${base}/products`, { headers: { cookie: admin.cookie } })).text();
-    assert.match(list, /안전재고 일괄 설정/);
+    assert.match(list, /검색 결과 전체에 일괄 적용/);
+    assert.match(list, /action="\/products\/bulk-selected"/);
+    assert.match(list, /name="ids" value="\d+" form="psel"/);
     const vlist = await (await fetch(`${base}/products`, { headers: { cookie: viewer.cookie } })).text();
-    assert.doesNotMatch(vlist, /안전재고 일괄 설정/);
+    assert.doesNotMatch(vlist, /검색 결과 전체에 일괄 적용/);
+    assert.doesNotMatch(vlist, /bulk-selected/);
+    // 체크한 상품들에 적용: 안전재고 / 사용 중지 / 다시 사용
+    let rr = await post(admin, '/products/bulk-selected', { _csrf: admin.csrf, action: 'safety', safety_stock: '8', ids: String(id) });
+    assert.match(flash(rr), /1개의 안전재고를 8개로/);
+    assert.equal(val(), 8);
+    rr = await post(admin, '/products/bulk-selected', { _csrf: admin.csrf, action: 'deactivate', ids: String(id) });
+    assert.match(flash(rr), /1개를 사용 중지/);
+    assert.equal(db.prepare('SELECT active FROM products WHERE id = ?').get(id).active, 0);
+    rr = await post(admin, '/products/bulk-selected', { _csrf: admin.csrf, action: 'activate', ids: String(id) });
+    assert.equal(db.prepare('SELECT active FROM products WHERE id = ?').get(id).active, 1);
+    rr = await post(admin, '/products/bulk-selected', { _csrf: admin.csrf, action: 'safety', safety_stock: '8' });
+    assert.match(flash(rr), /먼저 체크/);
+    assert.equal((await post(viewer, '/products/bulk-selected', { _csrf: viewer.csrf, action: 'deactivate', ids: String(id) })).status, 403);
   } finally {
     server.close();
   }
