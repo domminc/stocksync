@@ -47,13 +47,24 @@
     <p class="muted">조건에 맞는 상품이 없습니다.</p>
   <% } else { %>
     <div class="actions mt8">
-      <button class="pri" type="button" data-print>인쇄 (<%= n(total) %>장 · 상품 <%= n(productCount) %>개)</button>
+      <button class="pri" type="button" id="pdf-btn">라벨 PDF 받기 (<%= n(total) %>장)</button>
+      <button type="button" data-print>브라우저로 인쇄 (<%= n(total) %>장 · 상품 <%= n(productCount) %>개)</button>
       <form method="post" action="/labels/printed" class="inline" data-confirm="이 상품들을 라벨 출력 완료로 표시합니다.">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
         <input type="hidden" name="ids" value="<%= items.map(function (i) { return i.p.id; }).join(',') %>">
         <button type="submit">인쇄했으면 “출력 완료”로 표시</button>
       </form>
     </div>
+    <div class="pr-msg" id="pdf-msg" role="status" hidden></div>
+    <details class="card mt12 pdf-help">
+      <summary><strong>PDF로 인쇄하는 방법</strong> <span class="small muted">— 프린터 연결 프로그램 없이</span></summary>
+      <ol class="helplist mt8">
+        <li><strong>라벨 PDF 받기</strong>를 눌러 파일을 받습니다. 페이지 크기가 라벨 크기(<%= SIZES[size] %>)이고 라벨 1장이 1페이지입니다.</li>
+        <li>받은 PDF를 열고 <strong>인쇄</strong>(Ctrl+P)를 누릅니다. 프린터는 XP-DT427B를 고릅니다.</li>
+        <li>인쇄 창에서 <strong>용지 크기를 50×30mm</strong>로(프린터 속성에 없으면 “사용자 지정 용지”로 추가), <strong>배율은 “실제 크기(100%)”</strong>, <strong>여백 없음</strong>으로 설정합니다. “용지에 맞춤”은 끄세요.</li>
+        <li>처음 한 번 시험으로 1~2장만 인쇄해 위치와 바코드가 잘 읽히는지 확인한 뒤 나머지를 인쇄합니다.</li>
+      </ol>
+    </details>
     <% if (truncated) { %><div class="notice mt12">한 번에 최대 <%= n(3000) %>장까지만 만듭니다. 나머지는 “라벨 미출력만”으로 다시 조회하세요.</div><% } %>
     <% if (copiesMode === 'stock' && total === 0) { %><div class="notice mt12">재고가 0인 상품은 라벨이 만들어지지 않습니다.</div><% } %>
   <% } %>
@@ -62,7 +73,7 @@
       <strong>프린터로 바로 출력</strong>
       <span class="chip" id="pr-status">확인 중…</span>
     </div>
-    <p class="small muted">라벨 프린터(XP-DT427B)가 연결된 <strong>매장 PC</strong>에서 이 화면을 열고 누르면 팝업 없이 바로 출력됩니다. 처음 한 번 <a href="/static/print-agent/install-windows.bat" download>출력 프로그램 설치 파일</a>을 받아 실행하세요. (설명: <a href="/static/print-agent/README.txt" target="_blank" rel="noopener">설치 안내</a>)</p>
+    <p class="small muted"><strong>설치 없이 쓰려면 위의 “라벨 PDF 받기”</strong>가 가장 간단합니다. 아래 기능은 선택 사항입니다. 라벨 프린터(XP-DT427B)가 연결된 <strong>매장 PC</strong>에서 이 화면을 열고 누르면 팝업 없이 바로 출력됩니다. 처음 한 번 <a href="/static/print-agent/install-windows.bat" download>출력 프로그램 설치 파일</a>을 받아 실행하세요. (설명: <a href="/static/print-agent/README.txt" target="_blank" rel="noopener">설치 안내</a>)</p>
     <div class="actions mt12">
       <button class="pri" type="button" data-act="print">프린터로 출력<%= total ? ' (' + n(total) + '장)' : '' %></button>
       <button type="button" data-act="test">테스트 1장</button>

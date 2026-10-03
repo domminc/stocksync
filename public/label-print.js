@@ -1,6 +1,8 @@
 // 라벨 화면의 "프린터로 바로 출력". 상품 정보를 TSPL 명령으로 바꿔 매장 PC 의 출력 프로그램(print-agent)으로 보낸다.
 //  - 가격·상품명(한글)은 화면 글꼴로 그려 이미지로 보내고, 바코드는 프린터 내장 기능으로 그린다.
 import { SIZES, labelLayout, monoBitmap, buildLabelJob, buildCalibrate, concatBytes } from './tspl.js';
+import { buildLabelsPdf } from './pdf-labels.js';
+import { code128Bits, ean13Bits } from './barcode-bits.js';
 
 const KEY = 'stocksync.printer.v1';
 const DEFAULTS = { agent: 'http://127.0.0.1:9101', mode: 'windows', printer: '', host: '', port: 9100, gap: 2, density: 8, speed: 4, narrow: 2, reverse: false, invert: false };
@@ -92,26 +94,26 @@ function init() {
     if (lines.length === 2 && text.length > lines.join('').length) lines[1] = fitText(ctx, `${lines[1]}…`, maxW);
     return lines.slice(0, 2).map((l) => fitText(ctx, l, maxW));
   }
-  function textBitmap(g, L) {
+  function textBitmap(g, L, s = 1) {
     if (!L.textH) return null;
     const canvas = document.createElement('canvas');
-    canvas.width = L.textW; canvas.height = L.textH;
+    canvas.width = L.textW * s; canvas.height = L.textH * s;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#000'; ctx.textBaseline = 'top'; ctx.textAlign = 'center';
     let y = 0;
     if (L.nameH) {
-      ctx.font = `700 ${L.nameFont}px ${FONT}`;
-      for (const line of wrapTwoLines(ctx, g.name, L.textW - 8)) { ctx.fillText(line, L.textW / 2, y); y += Math.round(L.nameFont * 1.15); }
-      y = L.nameH;
+      ctx.font = `700 ${L.nameFont * s}px ${FONT}`;
+      for (const line of wrapTwoLines(ctx, g.name, (L.textW - 8) * s)) { ctx.fillText(line, (L.textW * s) / 2, y); y += Math.round(L.nameFont * 1.15 * s); }
+      y = L.nameH * s;
     }
     if (L.priceH && g.price !== null) {
-      ctx.font = `800 ${L.priceFont}px ${FONT}`;
-      ctx.fillText(`${g.price.toLocaleString('ko-KR')}원`, L.textW / 2, y);
+      ctx.font = `800 ${L.priceFont * s}px ${FONT}`;
+      ctx.fillText(`${g.price.toLocaleString('ko-KR')}원`, (L.textW * s) / 2, y);
     }
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const bmp = monoBitmap(img.data, canvas.width, canvas.height, { blackBit: settings.invert ? 1 : 0 });
-    return { x: L.textX, y: L.textY, ...bmp };
+    return { x: L.textX, y: L.textY, ...bmp, widthPx: canvas.width };
   }
 
   function jobFor(g, copies = g.copies) {
@@ -138,6 +140,59 @@ function init() {
     }
     const j = await r.json().catch(() => ({ ok: false, error: `응답을 읽을 수 없습니다 (${r.status})` }));
     if (!j.ok) throw new Error(j.error || '출력에 실패했습니다.');
+  }
+
+  // ---- PDF 파일로 받기 (프린터 연결 없이: 받아서 열고 인쇄)
+  function pdfLabel(g, scale) {
+    const { w, h } = SIZES[sizeKey];
+    const L = labelLayout(w, h, { showName: fieldsMode === 'price_name' && g.name !== '', showPrice: fieldsMode !== 'barcode' });
+    const tb = L.textH ? textBitmap(g, L, scale) : null;
+    const lab = { copies: g.copies, image: null, barcode: null, human: null };
+    if (tb) lab.image = { widthPx: tb.widthPx, heightPx: tb.height, data: tb.data, xMm: L.textX / 8, yMm: L.textY / 8, wMm: L.textW / 8, hMm: L.textH / 8 };
+    let bits = '';
+    let moduleMm = 0.25; // Code 128: 2점(0.25mm), EAN-13: 3점
+    try {
+      if (kind === 'ean13' && /^\d{13}$/.test(g.barcode)) { bits = ean13Bits(g.barcode); moduleMm = 0.375; } else bits = code128Bits(g.barcode);
+    } catch { bits = ''; }
+    if (bits) {
+      const avail = w - 4;
+      if (bits.length * moduleMm > avail) moduleMm = avail / bits.length;
+      lab.barcode = { bits, moduleMm, xMm: (w - bits.length * moduleMm) / 2, yMm: L.barcodeY / 8, hMm: L.barcodeH / 8 };
+    }
+    lab.human = { text: g.barcode, yMm: (L.barcodeY + L.barcodeH) / 8 + 0.5, sizePt: 7 };
+    return lab;
+  }
+  async function makePdf() {
+    const groups = labelGroups();
+    if (!groups.length) throw new Error('출력할 라벨이 없습니다. 위에서 상품을 고르고 미리보기를 누르세요.');
+    if (!SIZES[sizeKey]) throw new Error(`${sizeKey} 규격은 PDF 로 만들 수 없습니다 (50×30, 40×25 만 가능).`);
+    if (document.fonts?.ready) await document.fonts.ready;
+    const scale = groups.length <= 400 ? 2 : 1;
+    const { w, h } = SIZES[sizeKey];
+    const bytes = buildLabelsPdf({ widthMm: w, heightMm: h, labels: groups.map((g) => pdfLabel(g, scale)) });
+    const total = groups.reduce((n, g) => n + g.copies, 0);
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `labels-${sizeKey}-${stamp}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return { total, bytes: bytes.length };
+  }
+  const pdfBtn = $('pdf-btn');
+  if (pdfBtn) {
+    const pdfMsg = $('pdf-msg');
+    pdfBtn.addEventListener('click', async () => {
+      pdfBtn.disabled = true;
+      try {
+        const r = await makePdf();
+        pdfMsg.textContent = `라벨 ${r.total.toLocaleString('ko-KR')}장 PDF(${Math.round(r.bytes / 1024).toLocaleString('ko-KR')}KB)를 받았습니다. 받은 파일을 열어 인쇄하세요. (아래 “PDF로 인쇄하는 방법”)`;
+        pdfMsg.className = 'pr-msg ok';
+      } catch (e) { pdfMsg.textContent = e.message; pdfMsg.className = 'pr-msg err'; }
+      pdfMsg.hidden = false;
+      pdfBtn.disabled = false;
+    });
   }
 
   const act = {
