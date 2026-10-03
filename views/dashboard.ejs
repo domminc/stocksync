@@ -7,16 +7,22 @@
     <% if (can('product.write')) { %> <a href="/products/new">상품을 직접 등록</a>하세요.<% } %></div>
 <% } %>
 
-<div class="cards">
-  <a class="stat" href="/products"><div class="label">판매 가능 재고</div><div class="value"><%= n(stats.totalQty) %></div><div class="sub">관리 상품 <%= n(stats.trackedCount) %>개 / 전체 <%= n(stats.productCount) %>개</div></a>
-  <a class="stat" href="/products?filter=hold"><div class="label">보류 재고</div><div class="value"><%= n(stats.totalHold) %></div><div class="sub">불량·검수 대기</div></a>
-  <a class="stat" href="/orders?status=pending"><div class="label">미출고 주문</div><div class="value"><%= n(stats.pendingQty) %></div><div class="sub"><%= n(stats.pendingLines) %>건 · 아직 재고에서 빠지지 않음</div></a>
-  <a class="stat <%= stats.riskCount ? 'bad' : '' %>" href="/products?filter=risk"><div class="label">오버셀 위험 상품</div><div class="value"><%= n(stats.riskCount) %></div><div class="sub">미출고 주문 &gt; 판매 가능 재고</div></a>
-  <a class="stat <%= stats.outCount ? 'bad' : '' %>" href="/products?filter=out"><div class="label">품절 상품</div><div class="value"><%= n(stats.outCount) %></div><div class="sub">재고관리 대상 중 0개</div></a>
-  <a class="stat <%= stats.lowCount ? 'warn' : '' %>" href="/products?filter=low"><div class="label">재고 부족</div><div class="value"><%= n(stats.lowCount) %></div><div class="sub">안전재고 이하</div></a>
-  <% if (stats.unmatchedCount) { %><a class="stat warn" href="/orders?status=unmatched"><div class="label">상품 미매칭 주문</div><div class="value"><%= n(stats.unmatchedCount) %></div><div class="sub">출고하려면 상품 연결 필요</div></a><% } %>
-  <% if (stats.unprintedCount && can('label.print')) { %><a class="stat" href="/labels?filter=unprinted"><div class="label">라벨 미출력 상품</div><div class="value"><%= n(stats.unprintedCount) %></div><div class="sub">바코드 라벨을 아직 인쇄하지 않음</div></a><% } %>
-  <% if (stats.needsReturnCount) { %><a class="stat bad" href="/orders?status=needs_return"><div class="label">반품 처리 필요</div><div class="value"><%= n(stats.needsReturnCount) %></div><div class="sub">출고 후 취소·반품된 주문</div></a><% } %>
+<% var okCount = Math.max(0, stats.trackedCount - stats.outCount - stats.lowCount); var hTotal = Math.max(1, okCount + stats.lowCount + stats.outCount); %>
+<div class="cards bento">
+  <a class="stat feature" href="/products"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>판매 가능 재고</div><div class="value"><%= n(stats.totalQty) %></div><div class="sub">관리 상품 <%= n(stats.trackedCount) %>개 / 전체 <%= n(stats.productCount) %>개</div>
+    <% if (stats.trackedCount > 0) { %><div class="health"><svg viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="재고 상태 비율: 정상 <%= okCount %>, 부족 <%= stats.lowCount %>, 품절 <%= stats.outCount %>">
+      <rect class="seg-ok" x="0" y="0" width="<%= (okCount / hTotal * 100).toFixed(2) %>" height="8"/>
+      <rect class="seg-low" x="<%= (okCount / hTotal * 100).toFixed(2) %>" y="0" width="<%= (stats.lowCount / hTotal * 100).toFixed(2) %>" height="8"/>
+      <rect class="seg-out" x="<%= ((okCount + stats.lowCount) / hTotal * 100).toFixed(2) %>" y="0" width="<%= (stats.outCount / hTotal * 100).toFixed(2) %>" height="8"/></svg>
+      <ul><li>정상 <b><%= n(okCount) %></b></li><li class="low">부족 <b><%= n(stats.lowCount) %></b></li><li class="out">품절 <b><%= n(stats.outCount) %></b></li></ul></div><% } %></a>
+  <a class="stat" href="/products?filter=hold"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>보류 재고</div><div class="value"><%= n(stats.totalHold) %></div><div class="sub">불량·검수 대기</div></a>
+  <a class="stat" href="/orders?status=pending"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-cart"/></svg>미출고 주문</div><div class="value"><%= n(stats.pendingQty) %></div><div class="sub"><%= n(stats.pendingLines) %>건 · 아직 재고에서 빠지지 않음</div></a>
+  <a class="stat <%= stats.riskCount ? 'bad' : '' %>" href="/products?filter=risk"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>오버셀 위험 상품</div><div class="value"><%= n(stats.riskCount) %></div><div class="sub">미출고 주문 &gt; 판매 가능 재고</div></a>
+  <a class="stat <%= stats.outCount ? 'bad' : '' %>" href="/products?filter=out"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-out"/></svg>품절 상품</div><div class="value"><%= n(stats.outCount) %></div><div class="sub">재고관리 대상 중 0개</div></a>
+  <a class="stat <%= stats.lowCount ? 'warn' : '' %>" href="/products?filter=low"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-in"/></svg>재고 부족</div><div class="value"><%= n(stats.lowCount) %></div><div class="sub">안전재고 이하</div></a>
+  <% if (stats.unmatchedCount) { %><a class="stat warn" href="/orders?status=unmatched"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg>상품 미매칭 주문</div><div class="value"><%= n(stats.unmatchedCount) %></div><div class="sub">출고하려면 상품 연결 필요</div></a><% } %>
+  <% if (stats.unprintedCount && can('label.print')) { %><a class="stat" href="/labels?filter=unprinted"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-tag"/></svg>라벨 미출력 상품</div><div class="value"><%= n(stats.unprintedCount) %></div><div class="sub">바코드 라벨을 아직 인쇄하지 않음</div></a><% } %>
+  <% if (stats.needsReturnCount) { %><a class="stat bad" href="/orders?status=needs_return"><div class="label"><svg class="ic" aria-hidden="true"><use href="#i-truck"/></svg>반품 처리 필요</div><div class="value"><%= n(stats.needsReturnCount) %></div><div class="sub">출고 후 취소·반품된 주문</div></a><% } %>
 </div>
 
 <h2>최근 재고 변동</h2>

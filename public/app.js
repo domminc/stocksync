@@ -48,6 +48,16 @@
   if (mq.addEventListener) mq.addEventListener('change', setDevice);
 
 
+  // 대시보드 타일: 커서를 따라 은은한 빛이 움직인다 (마우스일 때만)
+  document.addEventListener('pointermove', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    var t = e.target && e.target.closest && e.target.closest('a.stat');
+    if (!t) return;
+    var r = t.getBoundingClientRect();
+    t.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    t.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+
   // 화면 테마: 라이트 / 다크 / 시스템. 쿠키에 저장해 서버가 다음 화면부터 바로 적용한다(깜빡임 없음).
   document.addEventListener('click', function (e) {
     var b = e.target && e.target.closest && e.target.closest('[data-theme-set]');

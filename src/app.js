@@ -100,7 +100,7 @@ export function createApp({ db, secureCookie = false, trustProxy = false, barcod
   });
   const assetV = assetVersion();
   app.use('/static', express.static(path.join(root, 'public'), {
-    setHeaders: (res, _file) => res.set('Cache-Control', res.req?.query?.v ? 'public, max-age=31536000, immutable' : 'no-cache'),
+    setHeaders: (res, file) => res.set('Cache-Control', res.req?.query?.v || file.endsWith('.woff2') ? 'public, max-age=31536000, immutable' : 'no-cache'),
   }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
