@@ -77,7 +77,7 @@ export function registerOrders(app, { db, guard }) {
   app.post('/orders/unmatched/link', guard('order.match'), (req, res) => {
     // 후보 버튼은 product_id 를, 직접 입력은 바코드를 보낸다.
     const p = req.body.product_id
-      ? db.prepare('SELECT id, name FROM products WHERE id = ?').get(int(req.body.product_id, 0))
+      ? db.prepare('SELECT id, name FROM products WHERE id = ? AND deleted_at IS NULL').get(int(req.body.product_id, 0))
       : findProductByCode(db, req.body.barcode);
     if (!p) return res.redirectWith('/orders/unmatched', `등록된 상품을 찾을 수 없습니다: ${normalizeBarcode(req.body.barcode).slice(0, 40)}`, 'err');
     const n = linkMatchKeyToProduct(db, req.body.key, p.id);

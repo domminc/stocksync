@@ -561,3 +561,9 @@ tr.inactive td.sel, tr.inactive td.sel * { opacity: 1; }
 a.mbrand { color: var(--ink); text-decoration: none; }
 a.mbrand:hover { text-decoration: none; }
 .side a.brand .logo .ic { color: #fff; }
+
+/* 상품 삭제 영역 */
+.danger-card > summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; color: var(--err); }
+.danger-card > summary::-webkit-details-marker { display: none; }
+.danger-card > summary::before { content: "＋"; font-weight: 700; margin-right: 2px; }
+.danger-card[open] > summary::before { content: "－"; }

@@ -88,8 +88,8 @@
 <h2>역할별 권한</h2>
 <div class="table-wrap"><table>
   <tr><th>역할</th><th>할 수 있는 일</th></tr>
-  <tr><td><%= ROLES.admin %></td><td>모든 기능 + 계정 관리</td></tr>
-  <tr><td><%= ROLES.manager %></td><td>상품 등록·가져오기, 입고·출고, 재고 조정, 라벨 인쇄, 온라인 주문 처리, 반품</td></tr>
+  <tr><td><%= ROLES.admin %></td><td>모든 기능 + 계정 관리 + <strong>상품 삭제</strong>(관리자만 가능)</td></tr>
+  <tr><td><%= ROLES.manager %></td><td>상품 등록·수정·가져오기, 입고·출고, 재고 조정, 라벨 인쇄, 온라인 주문 처리, 반품 (상품 삭제는 불가)</td></tr>
   <tr><td><%= ROLES.staff %></td><td>입고·출고 스캔, 라벨 인쇄, 조회 (재고 조정·가져오기는 불가)</td></tr>
   <tr><td><%= ROLES.online %></td><td>온라인 주문 가져오기·출고확정·취소·반품·상품 연결, 조회</td></tr>
   <tr><td><%= ROLES.viewer %></td><td>조회만 가능</td></tr>

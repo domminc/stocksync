@@ -3,7 +3,7 @@ import { tx } from '../db.js';
 import { nowIso } from './time.js';
 import { parseCsv, resolveColumns } from './csv.js';
 import { normalizeBarcode, isAcceptableBarcode, isValidEan13, looksLikeExcelDamage } from './ean13.js';
-import { applyStock } from './inventory.js';
+import { applyStock, StockError } from './inventory.js';
 import { issueBarcode } from './barcodes.js';
 import { makeNameKey } from './namekey.js';
 
@@ -145,7 +145,7 @@ const escapeLike = (s) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 const FROM = 'FROM products p LEFT JOIN inventory i ON i.product_id = p.id';
 
 function buildWhere({ q = '', filter = '' }) {
-  const where = [];
+  const where = ['p.deleted_at IS NULL'];
   const params = [];
   const term = String(q).trim();
   if (term) {
@@ -222,6 +222,44 @@ export function updateSelected(db, ids, { safety, active } = {}) {
   return { count: Number(db.prepare(`UPDATE products SET active = ?, updated_at = ? WHERE id IN (${marks})`).run(active ? 1 : 0, now, ...list).changes) };
 }
 
+/**
+ * 상품 삭제(목록에서 숨김). 재고 원장·주문 기록이 남아 있으므로 행은 지우지 않는다.
+ *  - 미출고 주문이 있으면 삭제하지 않는다 (먼저 출고·취소).
+ *  - 남은 재고(가용·보류)는 원장에 "상품 삭제" 조정으로 기록하면서 0 으로 정리한다.
+ *  - 바코드·상품코드는 이름을 바꿔 같은 번호를 다시 쓸 수 있게 하고, 주문 연결 기록(별칭)과 진행 중 스캔은 지운다.
+ * 반환: { done: [{id, name}], blocked: [{id, name, reason}] }
+ */
+export function deleteProducts(db, ids, userId = null) {
+  const done = [];
+  const blocked = [];
+  for (const id of [...new Set(ids.map(Number).filter((n) => Number.isInteger(n) && n > 0))]) {
+    const info = db.prepare('SELECT id, name, option_name FROM products WHERE id = ?').get(id);
+    const label = info ? `${info.name}${info.option_name ? ` / ${info.option_name}` : ''}` : String(id);
+    try {
+      tx(db, () => {
+        const p = db.prepare('SELECT id, name, barcode, sku_code, tracked FROM products WHERE id = ? AND deleted_at IS NULL').get(id);
+        if (!p) throw new ValidationError('없거나 이미 삭제된 상품입니다.');
+        const pending = db.prepare("SELECT COUNT(*) AS n FROM order_lines WHERE product_id = ? AND status = 'pending'").get(id).n;
+        if (pending) throw new ValidationError(`미출고 주문 ${pending}건이 있어 삭제할 수 없습니다. 먼저 출고하거나 취소하세요.`);
+        const inv = db.prepare('SELECT qty, hold FROM inventory WHERE product_id = ?').get(id);
+        if (p.tracked && inv && (inv.qty || inv.hold)) {
+          applyStock(db, { productId: id, qtyDelta: -inv.qty, holdDelta: -inv.hold, eventType: 'ADJUST', reason: '상품 삭제 — 남은 재고를 0으로 정리', userId });
+        }
+        const now = nowIso();
+        db.prepare("UPDATE products SET active = 0, deleted_at = ?, barcode = ?, sku_code = ?, name_key = '', updated_at = ? WHERE id = ?")
+          .run(now, `~deleted~${id}~${p.barcode}`, `~deleted~${id}~${p.sku_code}`, now, id);
+        db.prepare('DELETE FROM code_aliases WHERE product_id = ?').run(id);
+        db.prepare("DELETE FROM scan_lines WHERE product_id = ? AND session_id IN (SELECT id FROM scan_sessions WHERE status = 'open')").run(id);
+      });
+      done.push({ id, name: label });
+    } catch (e) {
+      if (e instanceof ValidationError || e instanceof StockError) blocked.push({ id, name: label, reason: e.message });
+      else throw e;
+    }
+  }
+  return { done, blocked };
+}
+
 /** 라벨을 인쇄할 상품들: ids 가 있으면 그 상품, 없으면 검색 조건에 맞는 상품 (최대 limit 개) */
 export function labelTargets(db, { ids = [], q = '', filter = '', limit = 1000 } = {}) {
   const select = `SELECT p.id, p.barcode, p.name, p.option_name, p.sku_code, p.price, p.label_printed_at, COALESCE(i.qty, 0) AS qty ${FROM}`;
@@ -255,7 +293,7 @@ export function suggestProducts(db, tokens, limit = 5) {
     return db.prepare(
       `SELECT p.id, p.name, p.option_name, p.barcode, p.sku_code
          FROM products_fts f JOIN products p ON p.id = f.rowid
-        WHERE products_fts MATCH ? ORDER BY bm25(products_fts) LIMIT ?`,
+        WHERE products_fts MATCH ? AND p.deleted_at IS NULL ORDER BY bm25(products_fts) LIMIT ?`,
     ).all(query, limit);
   } catch {
     return [];

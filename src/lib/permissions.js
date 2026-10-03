@@ -13,6 +13,7 @@ const PERMISSIONS = {
   view: ALL,
   'product.write': ['admin', 'manager'],
   'product.import': ['admin', 'manager'],
+  'product.delete': ['admin'],
   'stock.in': ['admin', 'manager', 'staff'],
   'stock.out': ['admin', 'manager', 'staff'],
   'stock.adjust': ['admin', 'manager'],

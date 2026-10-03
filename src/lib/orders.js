@@ -192,7 +192,7 @@ export function rematchOrders(db) {
 export function linkMatchKeyToProduct(db, matchKey, productId) {
   const key = String(matchKey ?? '').trim();
   if (!key) throw new ValidationError('연결할 항목이 비어 있습니다.');
-  const p = db.prepare('SELECT id FROM products WHERE id = ?').get(productId);
+  const p = db.prepare('SELECT id FROM products WHERE id = ? AND deleted_at IS NULL').get(productId);
   if (!p) throw new ValidationError('상품을 찾을 수 없습니다.');
   return tx(db, () => {
     db.prepare('INSERT INTO code_aliases (raw_code, product_id, created_at) VALUES (?, ?, ?) ON CONFLICT(raw_code) DO UPDATE SET product_id = excluded.product_id')

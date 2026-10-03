@@ -93,6 +93,7 @@
     <button type="submit" name="action" value="activate" data-needs-selection data-confirm-tpl="선택한 {n}개를 다시 사용으로 바꿉니다. 계속할까요?" disabled>다시 사용</button>
     <% } %>
     <% if (can('label.print')) { %><button type="button" data-labels-go data-needs-selection disabled>라벨 인쇄</button><% } %>
+    <% if (can('product.delete')) { %><button type="submit" formaction="/products/delete-selected" class="danger" data-needs-selection data-confirm-tpl="선택한 {n}개 상품을 삭제합니다. 남은 재고는 0으로 정리되고 되돌릴 수 없습니다. 미출고 주문이 있는 상품은 건너뜁니다. 계속할까요?" disabled>삭제</button><% } %>
   </form>
 </div>
 <% } %>

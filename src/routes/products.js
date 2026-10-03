@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  listProducts, getProduct, createProduct, updateProduct, importProducts, setSafetyStock, setSafetyStockMany, setActiveMany, updateSelected, PRODUCT_CSV_TEMPLATE, ValidationError,
+  listProducts, getProduct, createProduct, updateProduct, importProducts, setSafetyStock, setSafetyStockMany, setActiveMany, updateSelected, deleteProducts, PRODUCT_CSV_TEMPLATE, ValidationError,
 } from '../lib/products.js';
 import { resolveHold } from '../lib/inventory.js';
 import { decodeText, csvCell } from '../lib/csv.js';
@@ -31,7 +31,7 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
       `SELECT p.barcode, p.sku_code, p.name, p.option_name, p.category, p.price, p.safety_stock, p.tracked,
               COALESCE(i.qty, 0) AS qty, COALESCE(i.hold, 0) AS hold,
               (SELECT COALESCE(SUM(o.qty), 0) FROM order_lines o WHERE o.product_id = p.id AND o.status = 'pending') AS pending
-         FROM products p LEFT JOIN inventory i ON i.product_id = p.id ORDER BY p.id`,
+         FROM products p LEFT JOIN inventory i ON i.product_id = p.id WHERE p.deleted_at IS NULL ORDER BY p.id`,
     );
     for (const r of stmt.iterate()) {
       lines.push([r.barcode, r.sku_code, r.name, r.option_name, r.category, r.price ?? '', r.safety_stock, r.tracked ? 'Y' : 'N', r.qty, r.hold, r.pending].map(csvCell).join(','));
@@ -121,6 +121,22 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
     }
   });
 
+  const deleteMessage = ({ done, blocked }) => {
+    let msg = done.length ? `상품 ${done.length.toLocaleString('ko-KR')}개를 삭제했습니다.` : '삭제된 상품이 없습니다.';
+    if (blocked.length) msg += ` ${blocked.length}개는 삭제하지 못했습니다: ${blocked.slice(0, 2).map((b) => `${b.name.slice(0, 20)}(${b.reason.replace(/ 먼저.*$/, '')})`).join(', ')}${blocked.length > 2 ? ' 외' : ''}`;
+    return msg;
+  };
+
+  // 체크한 상품들 삭제 (관리자만)  — /products/:id 보다 먼저 등록해야 한다
+  app.post('/products/delete-selected', guard('product.delete'), (req, res) => {
+    const ids = [].concat(req.body.ids ?? []).map((v) => int(v, 0)).filter((n) => n > 0);
+    const back = (() => { const rt = String(req.body.return_to ?? ''); return rt.startsWith('/products') && !rt.startsWith('//') ? rt : '/products'; })();
+    if (!ids.length) return res.redirectWith(back, '삭제할 상품을 먼저 체크하세요.', 'err');
+    const r = deleteProducts(db, ids.slice(0, 500), req.user.id);
+    audit(db, req.user.id, 'product.delete', `deleted=${r.done.length} blocked=${r.blocked.length}`);
+    res.redirectWith(back, deleteMessage(r), r.done.length ? 'ok' : 'err');
+  });
+
   // 체크한 상품들에 안전재고 설정 / 사용 중지 / 다시 사용
   app.post('/products/bulk-selected', guard('product.write'), (req, res) => {
     const ids = [].concat(req.body.ids ?? []).map((v) => int(v, 0)).filter((n) => n > 0);
@@ -151,6 +167,16 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
     const r = setActiveMany(db, { q, filter }, active);
     audit(db, req.user.id, 'product.active_bulk', `active=${active ? 1 : 0} count=${r.count} q=${q} filter=${filter}`);
     res.redirectWith(target, `상품 ${r.count.toLocaleString('ko-KR')}개를 ${active ? '다시 사용' : '사용 중지'}로 바꿨습니다.`);
+  });
+
+  // 상품 하나 삭제 (상세 화면, 관리자만, '삭제' 입력 확인)
+  app.post('/products/:id/delete', guard('product.delete'), (req, res) => {
+    const id = int(req.params.id, 0);
+    if (String(req.body.confirm ?? '').trim() !== '삭제') return res.redirectWith(`/products/${id}`, '삭제하려면 확인 칸에 “삭제”를 입력하세요.', 'err');
+    const r = deleteProducts(db, [id], req.user.id);
+    audit(db, req.user.id, 'product.delete', `#${id} deleted=${r.done.length} blocked=${r.blocked.length}`);
+    if (!r.done.length) return res.redirectWith(`/products/${id}`, r.blocked[0]?.reason ?? '삭제하지 못했습니다.', 'err');
+    res.redirectWith('/products', `${r.done[0].name} 상품을 삭제했습니다.`);
   });
 
   // 상품 상세에서 안전재고만 바로 바꾼다

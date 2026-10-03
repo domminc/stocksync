@@ -1,15 +1,15 @@
 <%- include('partials/head') %>
-<% var st = stockStatus({ tracked: p.tracked, qty: p.qty, safety: p.safety_stock }); %>
+<% var st = stockStatus({ tracked: p.tracked, qty: p.qty, safety: p.safety_stock }); var gone = Boolean(p.deleted_at); %>
 <header class="page-head">
   <div>
     <h1><%= p.name %></h1>
-    <p class="lead"><%= p.option_name %> <% if (!p.active) { %><span class="chip stopped">사용 중지</span><% } else { %><span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span><% } %></p>
+    <p class="lead"><%= p.option_name %> <% if (gone) { %><span class="chip stopped">삭제됨</span><% } else if (!p.active) { %><span class="chip stopped">사용 중지</span><% } else { %><span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span><% } %></p>
   </div>
-  <div class="actions">
+  <% if (!gone) { %><div class="actions">
     <% if (can('product.write')) { %><a class="btn" href="/products/<%= p.id %>/edit">수정</a><% } %>
     <% if (can('label.print')) { %><a class="btn" href="/labels?ids=<%= p.id %>">라벨 인쇄</a><% } %>
     <% if (can('stock.adjust') && p.tracked) { %><a class="btn" href="/adjust?code=<%= encodeURIComponent(p.barcode) %>">재고 조정</a><% } %>
-  </div>
+  </div><% } %>
 </header>
 
 <div class="cards">
@@ -38,6 +38,20 @@
     <dt>재고 수량 관리</dt><dd><%= p.tracked ? '예' : '아니오' %></dd>
   </dl>
 </div>
+
+<% if (gone) { %>
+<div class="notice">삭제된 상품입니다. 재고 기록은 원장에 남아 있고, 목록·검색·스캔에는 나오지 않습니다.</div>
+<% } else if (can('product.delete')) { %>
+<details class="card danger-card">
+  <summary><strong>상품 삭제</strong> <span class="small muted">— 목록에서 없애고 같은 바코드를 다시 쓸 수 있게 합니다</span></summary>
+  <form method="post" action="/products/<%= p.id %>/delete" class="row ac mt12" autocomplete="off" data-confirm="이 상품을 삭제합니다. 남은 재고 <%= n(p.qty + p.hold) %>개는 0으로 정리되고 되돌릴 수 없습니다. 계속할까요?">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="minw160"><label for="del-confirm">확인을 위해 “삭제”를 입력하세요</label><input id="del-confirm" name="confirm" type="text" placeholder="삭제" required autocomplete="off"></div>
+    <div class="fit"><button class="danger" type="submit">상품 삭제</button></div>
+  </form>
+  <p class="small muted mt8">미출고 주문이 있으면 삭제되지 않습니다. 재고 이력(원장)은 지워지지 않고 “상품 삭제” 조정으로 남습니다. 잠깐 쓰지 않을 뿐이라면 삭제 대신 “사용 중지”를 쓰세요.</p>
+</details>
+<% } %>
 
 <% if (p.hold > 0 && can('stock.adjust')) { %>
 <div class="card">
