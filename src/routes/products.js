@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  listProducts, getProduct, createProduct, updateProduct, importProducts, setSafetyStock, setSafetyStockMany, PRODUCT_CSV_TEMPLATE, ValidationError,
+  listProducts, getProduct, createProduct, updateProduct, importProducts, setSafetyStock, setSafetyStockMany, setActiveMany, PRODUCT_CSV_TEMPLATE, ValidationError,
 } from '../lib/products.js';
 import { resolveHold } from '../lib/inventory.js';
 import { decodeText, csvCell } from '../lib/csv.js';
@@ -46,7 +46,7 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
       heading: '상품 가져오기 (CSV)',
       help: [
         '필수 열: 상품명. 선택 열: 바코드, 상품코드, 옵션, 분류, 판매가, 안전재고, 재고관리(Y/N), 현재고.',
-        '바코드가 비어 있으면 이 시스템이 EAN-13 바코드를 자동 발급합니다 (20으로 시작하는 매장 내부용 번호). 발급한 뒤 “라벨 인쇄”로 상품에 붙이세요.',
+        '바코드가 비어 있으면 이 시스템이 EAN-13 바코드를 자동 발급합니다 (77로 시작하는 회사 내부용 번호). 발급한 뒤 “라벨 인쇄”로 상품에 붙이세요.',
         '같은 상품코드(또는 코드가 없으면 같은 상품명+옵션)는 다시 올려도 새로 발급하지 않고 정보만 갱신합니다. 옵션별로 상품코드가 있으면 꼭 넣어 주세요.',
         '이미 등록된 바코드는 상품 정보만 갱신하며 재고 수량은 바꾸지 않습니다.',
         '새 상품의 현재고는 “초기 재고”로 재고 원장에 기록됩니다.',
@@ -119,6 +119,18 @@ export function registerProducts(app, { db, guard, barcodeStrict }) {
       if (e instanceof ValidationError) return res.redirectWith(target, e.message, 'err');
       throw e;
     }
+  });
+
+  // 검색·보기 조건에 맞는 상품을 한 번에 사용 중지/재사용
+  app.post('/products/active-bulk', guard('product.write'), (req, res) => {
+    const q = String(req.body.q ?? '').slice(0, 100);
+    const filter = Object.hasOwn(FILTERS, req.body.filter) ? String(req.body.filter) : '';
+    const target = `/products?${new URLSearchParams({ q, filter })}`;
+    const active = req.body.active === '1';
+    if (!q && !filter) return res.redirectWith(target, '전체 상품을 한 번에 바꿀 수는 없습니다. 검색어나 ‘보기’로 상품을 먼저 좁히세요.', 'err');
+    const r = setActiveMany(db, { q, filter }, active);
+    audit(db, req.user.id, 'product.active_bulk', `active=${active ? 1 : 0} count=${r.count} q=${q} filter=${filter}`);
+    res.redirectWith(target, `상품 ${r.count.toLocaleString('ko-KR')}개를 ${active ? '다시 사용' : '사용 중지'}로 바꿨습니다.`);
   });
 
   // 상품 상세에서 안전재고만 바로 바꾼다

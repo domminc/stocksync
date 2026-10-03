@@ -2,11 +2,17 @@ import { tx } from '../db.js';
 import { ean13CheckDigit } from './ean13.js';
 
 /**
- * 자체 발급 바코드: EAN-13 의 20~29 로 시작하는 번호는 GS1 이 “매장 내부용(in-store)”으로 비워 둔 범위라
- * 회사 안에서 자유롭게 쓸 수 있다. (쇼핑몰 상품 등록에 GS1 정식 바코드가 필요하다면 별개로 관리)
- * 형식: '20' + 일련번호 10자리 + 체크디지트
+ * 자체 발급 바코드 형식: 접두어 2자리 + 일련번호 10자리 + 체크디지트.
+ * 접두어는 기본 '77' 이고 BARCODE_PREFIX(숫자 2자리)로 바꿀 수 있다. 이미 발급한 바코드는 바뀌지 않는다.
+ * 참고: 20~29 는 GS1 이 “매장 내부용”으로 비워 둔 범위다. 77x 는 다른 나라에 배정된 국가 접두어 범위라
+ * 회사 안에서 쓰는 데는 문제가 없지만, 쇼핑몰 상품 등록용 정식 바코드로는 쓸 수 없다.
  */
-export const INTERNAL_PREFIX = '20';
+export const DEFAULT_PREFIX = '77';
+export function barcodePrefix() {
+  const v = String(process.env.BARCODE_PREFIX ?? '').trim();
+  return /^\d{2}$/.test(v) ? v : DEFAULT_PREFIX;
+}
+export const INTERNAL_PREFIX = DEFAULT_PREFIX;
 
 export function issueBarcode(db) {
   return tx(db, () => {
@@ -14,7 +20,7 @@ export function issueBarcode(db) {
       const { next_serial: serial } = db.prepare('SELECT next_serial FROM barcode_counter WHERE id = 1').get();
       if (serial > 9999999999) throw new Error('자체 바코드 일련번호를 모두 사용했습니다.');
       db.prepare('UPDATE barcode_counter SET next_serial = ? WHERE id = 1').run(serial + 1);
-      const first12 = INTERNAL_PREFIX + String(serial).padStart(10, '0');
+      const first12 = barcodePrefix() + String(serial).padStart(10, '0');
       const code = first12 + ean13CheckDigit(first12);
       if (!db.prepare('SELECT 1 FROM products WHERE barcode = ?').get(code)) return code;
     }

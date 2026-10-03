@@ -107,7 +107,7 @@ test('상품 가져오기: 바코드 열이 없으면 자동 발급하고, 다�
   assert.equal(r.created, 4);
   assert.equal(r.barcodesIssued, 4);
   const before = db.prepare('SELECT sku_code, barcode FROM products ORDER BY id').all().map((x) => `${x.sku_code}=${x.barcode}`);
-  assert.ok(before.every((b) => /=20\d{11}$/.test(b)));
+  assert.ok(before.every((b) => /=77\d{11}$/.test(b)));
   const again = importProducts(db, csv);
   assert.equal(again.created, 0);
   assert.equal(again.updated, 4);

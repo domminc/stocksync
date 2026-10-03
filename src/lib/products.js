@@ -201,6 +201,13 @@ export function setSafetyStockMany(db, { q = '', filter = '' } = {}, value) {
   return { value: n, count: Number(r.changes) };
 }
 
+/** 검색·보기 조건에 맞는 상품을 한 번에 사용 중지/재사용한다. 재고·주문 기록은 그대로 남는다. */
+export function setActiveMany(db, { q = '', filter = '' } = {}, active) {
+  const { whereSql, params } = buildWhere({ q, filter });
+  const r = db.prepare(`UPDATE products SET active = ?, updated_at = ? WHERE id IN (SELECT p.id ${FROM} ${whereSql})`).run(active ? 1 : 0, nowIso(), ...params);
+  return { count: Number(r.changes) };
+}
+
 /** 라벨을 인쇄할 상품들: ids 가 있으면 그 상품, 없으면 검색 조건에 맞는 상품 (최대 limit 개) */
 export function labelTargets(db, { ids = [], q = '', filter = '', limit = 1000 } = {}) {
   const select = `SELECT p.id, p.barcode, p.name, p.option_name, p.sku_code, p.label_printed_at, COALESCE(i.qty, 0) AS qty ${FROM}`;

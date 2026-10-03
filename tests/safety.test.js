@@ -72,3 +72,15 @@ test('HTTP: 상세 저장·일괄 적용·권한·CSRF', async () => {
     server.close();
   }
 });
+
+test('setActiveMany: 조건에 맞는 상품만 사용 중지/재사용', async () => {
+  const { setActiveMany } = await import('../src/lib/products.js');
+  const db = memDb();
+  addProduct(db, 1, { name: '[샘플] 글러브' });
+  addProduct(db, 2, { name: '[샘플] 배트' });
+  addProduct(db, 3, { name: '진짜 글러브' });
+  assert.equal(setActiveMany(db, { q: '[샘플]' }, false).count, 2);
+  assert.deepEqual(db.prepare('SELECT active FROM products ORDER BY id').all().map((r) => r.active), [0, 0, 1]);
+  assert.equal(setActiveMany(db, { q: '[샘플]' }, true).count, 2);
+  assert.deepEqual(db.prepare('SELECT active FROM products ORDER BY id').all().map((r) => r.active), [1, 1, 1]);
+});

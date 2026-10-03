@@ -343,7 +343,7 @@ test('상품 등록 화면: 바코드를 비우면 자체 바코드가 발급되
   assert.equal(r.status, 302);
   const id = Number(/\/products\/(\d+)/.exec(r.headers.get('location'))[1]);
   const p = db.prepare('SELECT barcode, barcode_source FROM products WHERE id = ?').get(id);
-  assert.match(p.barcode, /^20\d{11}$/);
+  assert.match(p.barcode, /^77\d{11}$/);
   assert.equal(p.barcode_source, 'issued');
   const page = await (await c.get(`/labels?ids=${id}&n=3`)).text();
   assert.equal((page.match(/class="label"/g) || []).length, 3, '3장');

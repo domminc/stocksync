@@ -32,6 +32,21 @@
     <div class="fit"><button class="pri" type="submit">적용</button></div>
   </form>
   <p class="small muted mt8">이 수량 이하가 되면 ‘부족’으로 표시됩니다. 검색어나 ‘보기’로 상품을 먼저 좁힌 뒤 적용하세요. 상품 하나만 바꾸려면 상품 이름을 눌러 상세 화면에서 바꿉니다.</p>
+  <% if (q || filter) { %>
+  <div class="bulk-active mt12">
+    <strong class="small">사용 여부 일괄 변경</strong> <span class="small muted">— 테스트 상품 등을 정리할 때. 재고·주문 기록은 지워지지 않습니다.</span>
+    <div class="actions mt8">
+      <form method="post" action="/products/active-bulk" class="inline" data-confirm="현재 조건의 상품 <%= n(result.total) %>개를 사용 중지합니다. 계속할까요?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="q" value="<%= q %>"><input type="hidden" name="filter" value="<%= filter %>"><input type="hidden" name="active" value="0">
+        <button class="danger" type="submit">검색 결과 <%= n(result.total) %>개 사용 중지</button>
+      </form>
+      <form method="post" action="/products/active-bulk" class="inline" data-confirm="현재 조건의 상품 <%= n(result.total) %>개를 다시 사용으로 바꿉니다. 계속할까요?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="q" value="<%= q %>"><input type="hidden" name="filter" value="<%= filter %>"><input type="hidden" name="active" value="1">
+        <button type="submit">다시 사용</button>
+      </form>
+    </div>
+  </div>
+  <% } %>
 </details>
 <% } %>
 

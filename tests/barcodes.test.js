@@ -5,12 +5,12 @@ import { issueBarcode, ean13Bits, ean13Svg } from '../src/lib/barcodes.js';
 import { isValidEan13, ean13CheckDigit } from '../src/lib/ean13.js';
 import { createProduct } from '../src/lib/products.js';
 
-test('자체 바코드: 20 접두 + 일련번호 + 올바른 체크디지트, 번호는 겹치지 않는다', () => {
+test('자체 바코드: 77 접두 + 일련번호 + 올바른 체크디지트, 번호는 겹치지 않는다', () => {
   const db = memDb();
   const seen = new Set();
   for (let i = 0; i < 200; i++) {
     const code = issueBarcode(db);
-    assert.match(code, /^20\d{11}$/);
+    assert.match(code, /^77\d{11}$/);
     assert.ok(isValidEan13(code), code);
     assert.ok(!seen.has(code));
     seen.add(code);
@@ -22,7 +22,7 @@ test('이미 쓰는 번호는 건너뛰고 발급한다 (일련번호는 되돌�
   const db = memDb();
   const first = issueBarcode(db);
   // 다음 일련번호(2)가 이미 외부 바코드로 등록되어 있는 경우
-  const next12 = `20${String(2).padStart(10, '0')}`;
+  const next12 = `77${String(2).padStart(10, '0')}`;
   const taken = next12 + ean13CheckDigit(next12);
   db.prepare("INSERT INTO products (sku_code, barcode, name, created_at, updated_at) VALUES ('T', ?, 'x', '', '')").run(taken);
   const second = issueBarcode(db);
@@ -91,4 +91,16 @@ test('SVG: 숫자 13자리만, 인라인 style 없음, 접근성 라벨', () => 
   assert.throws(() => ean13Svg('123'), /13자리/);
   const dbCode = addProduct(memDb(), 1) && true;
   assert.ok(dbCode);
+});
+
+test('BARCODE_PREFIX 로 접두어를 바꿀 수 있고, 잘못된 값이면 기본 77', () => {
+  const old = process.env.BARCODE_PREFIX;
+  try {
+    process.env.BARCODE_PREFIX = '20';
+    assert.match(issueBarcode(memDb()), /^20\d{11}$/);
+    process.env.BARCODE_PREFIX = 'abc';
+    assert.match(issueBarcode(memDb()), /^77\d{11}$/);
+  } finally {
+    if (old === undefined) delete process.env.BARCODE_PREFIX; else process.env.BARCODE_PREFIX = old;
+  }
 });
