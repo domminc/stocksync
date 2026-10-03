@@ -18,6 +18,9 @@ export function registerLabels(app, { db, guard }) {
     const filter = Object.hasOwn(FILTERS, req.query.filter) ? String(req.query.filter) : '';
     const size = Object.hasOwn(SIZES, req.query.size) ? String(req.query.size) : '50x30';
     const copiesMode = req.query.copies === 'stock' ? 'stock' : 'fixed';
+    const asked = ['code128', 'ean13'].includes(req.query.bc) ? req.query.bc : '';
+    const bc = asked || (['code128', 'ean13'].includes(req.cookies?.lbc) ? req.cookies.lbc : 'code128');
+    if (asked) res.append('Set-Cookie', `lbc=${asked}; Path=/; Max-Age=31536000; SameSite=Lax`);
     const fixed = Math.min(Math.max(Number.parseInt(req.query.n, 10) || 1, 1), 50);
 
     const hasSelection = ids.length > 0 || q !== '' || filter !== '' || req.query.all === '1';
@@ -32,7 +35,7 @@ export function registerLabels(app, { db, guard }) {
       total = MAX_LABELS;
     }
     res.render('labels', {
-      title: '라벨 인쇄', SIZES, FILTERS, size, copiesMode, fixed, q, filter, ids: ids.join(','), hasSelection,
+      title: '라벨 인쇄', SIZES, FILTERS, size, copiesMode, fixed, bc, q, filter, ids: ids.join(','), hasSelection,
       items, total, truncated, productCount: targets.length,
     });
   });

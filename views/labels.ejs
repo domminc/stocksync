@@ -20,6 +20,13 @@
           <option value="stock"<%= copiesMode === 'stock' ? ' selected' : '' %>>현재 재고 수량만큼</option>
         </select>
       </div>
+      <div>
+        <label for="bc">바코드 종류</label>
+        <select id="bc" name="bc">
+          <option value="code128"<%= bc === 'code128' ? ' selected' : '' %>>Code 128 (권장 · 대부분 스캐너)</option>
+          <option value="ean13"<%= bc === 'ean13' ? ' selected' : '' %>>EAN-13</option>
+        </select>
+      </div>
       <div><label for="n">상품당 장수</label><input id="n" name="n" type="number" min="1" max="50" value="<%= fixed %>"></div>
       <% if (ids) { %><input type="hidden" name="ids" value="<%= ids %>"><% } %>
       <div class="span-all"><button class="pri" type="submit">미리보기</button></div>
@@ -46,10 +53,10 @@
 
 <div class="labels size-<%= size %>">
   <% items.forEach(function (it) { for (var k = 0; k < it.count; k++) { %>
-  <div class="label">
+  <div class="label" data-barcode="<%= it.p.barcode %>">
     <div class="label-name"><%= it.p.name %></div>
     <% if (it.p.option_name) { %><div class="label-opt"><%= it.p.option_name %></div><% } %>
-    <% if (/^\d{13}$/.test(it.p.barcode)) { %><%- ean13Svg(it.p.barcode) %><% } else { %><div class="label-code"><%= it.p.barcode %></div><% } %>
+    <%- barcodeSvg(it.p.barcode, bc) %>
   </div>
   <% } }) %>
 </div>

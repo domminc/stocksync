@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { memDb, addProduct } from './helpers.js';
-import { issueBarcode, ean13Bits, ean13Svg } from '../src/lib/barcodes.js';
+import { issueBarcode, ean13Bits, ean13Svg, C128_PATTERNS, code128Values, code128Bits, code128Svg, barcodeSvg } from '../src/lib/barcodes.js';
 import { isValidEan13, ean13CheckDigit } from '../src/lib/ean13.js';
 import { createProduct } from '../src/lib/products.js';
 
@@ -103,4 +103,26 @@ test('BARCODE_PREFIX 로 접두어를 바꿀 수 있고, 잘못된 값이면 기
   } finally {
     if (old === undefined) delete process.env.BARCODE_PREFIX; else process.env.BARCODE_PREFIX = old;
   }
+});
+
+test('Code 128: 패턴표(칸 합 11, 종료 13), 숫자는 Code C 로 압축, 체크값', () => {
+  assert.equal(C128_PATTERNS.table.length, 106);
+  for (const [i, p] of C128_PATTERNS.table.entries()) assert.equal([...p].reduce((n, c) => n + Number(c), 0), 11, `패턴 ${i}`);
+  assert.equal([...C128_PATTERNS.stop].reduce((n, c) => n + Number(c), 0), 13);
+  // 13자리 숫자: START B, 첫 숫자(B), CODE C, 6쌍, 체크 — 외부 디코더(zxing)로도 이 값이 읽히는 것을 확인했다
+  assert.deepEqual(code128Values('7700000000019'), [104, 23, 99, 70, 0, 0, 0, 0, 19, 69]);
+  assert.deepEqual(code128Values('12345678')[0], 105); // 짝수 자리는 START C
+  assert.equal(code128Bits('7700000000019').length, 10 * 11 + 13);
+  assert.throws(() => code128Values('한글'), /만들 수 없는/);
+  assert.throws(() => code128Values(''));
+});
+
+test('barcodeSvg: 종류 선택, EAN-13 이 아닌 번호와 한글은 안전하게 처리', () => {
+  assert.match(barcodeSvg('7700000000019', 'code128'), /<svg class="barcode"/);
+  assert.match(barcodeSvg('7700000000019', 'code128'), /aria-label="바코드 7700000000019"/);
+  assert.notEqual(barcodeSvg('7700000000019', 'code128'), barcodeSvg('7700000000019', 'ean13'));
+  assert.equal(barcodeSvg('7700000000019', 'ean13'), ean13Svg('7700000000019'));
+  assert.match(barcodeSvg('GLV-001', 'ean13'), /<svg class="barcode"/); // 13자리 숫자가 아니면 종류와 상관없이 Code 128
+  assert.match(barcodeSvg('상품<코드>', 'code128'), /class="label-code">상품코드</);
+  assert.match(code128Svg('7700000000019'), /shape-rendering="crispEdges"/);
 });
