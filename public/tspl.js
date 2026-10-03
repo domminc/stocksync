@@ -1,0 +1,89 @@
+// TSPL(라벨 프린터 명령어) 만들기. 브라우저와 Node 테스트에서 같이 쓰는 순수 함수 모음이다.
+//  - 203dpi 프린터는 1mm = 8점(dot)
+//  - 한글 상품명은 프린터에 한글 글꼴이 없어도 되도록 "이미지(BITMAP)"로 보내고, 바코드는 프린터 내장 기능(BARCODE)으로 그린다.
+export const DOTS_PER_MM = 8;
+export const SIZES = { '50x30': { w: 50, h: 30 }, '40x25': { w: 40, h: 25 } };
+export const mmToDots = (mm) => Math.round(mm * DOTS_PER_MM);
+
+const enc = new TextEncoder();
+
+export function concatBytes(parts) {
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) { out.set(p, off); off += p.length; }
+  return out;
+}
+
+/**
+ * RGBA 픽셀 → 1비트 비트맵. 글자(어두운 곳)만 프린터가 찍도록 바꾼다.
+ * TSPL 비트맵은 기본적으로 비트 0 = 검정(인쇄), 1 = 흰색이다. 프린터에서 반전되어 나오면 blackBit 을 1 로 쓴다.
+ */
+export function monoBitmap(rgba, width, height, { threshold = 160, blackBit = 0 } = {}) {
+  const widthBytes = Math.ceil(width / 8);
+  const data = new Uint8Array(widthBytes * height);
+  if (blackBit === 0) data.fill(0xff);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const a = rgba[i + 3] / 255;
+      const luma = 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
+      const v = luma * a + 255 * (1 - a); // 흰 바탕 위에 합성
+      if (v < threshold) {
+        const at = y * widthBytes + (x >> 3);
+        const mask = 0x80 >> (x & 7);
+        if (blackBit === 0) data[at] &= ~mask; else data[at] |= mask;
+      }
+    }
+  }
+  return { widthBytes, height, data };
+}
+
+const header = ({ widthMm, heightMm, gapMm = 2, media = 'gap', density = 8, speed = 4, reverse = false }) => {
+  const lines = [`SIZE ${widthMm} mm,${heightMm} mm`];
+  if (media === 'bline') lines.push(`BLINE ${gapMm} mm,0 mm`);
+  else if (media === 'continuous') lines.push('GAP 0 mm,0 mm');
+  else lines.push(`GAP ${gapMm} mm,0 mm`);
+  lines.push(`DIRECTION ${reverse ? 0 : 1},0`, 'REFERENCE 0,0', `DENSITY ${density}`, `SPEED ${speed}`, 'CLS');
+  return lines;
+};
+
+const clampInt = (v, lo, hi, d) => { const n = Number.parseInt(v, 10); return Number.isFinite(n) ? Math.min(Math.max(n, lo), hi) : d; };
+
+/** 라벨 1종 × 장수(copies) 를 인쇄하는 명령어 묶음 */
+export function buildLabelJob(opts) {
+  const o = { ...opts };
+  o.density = clampInt(o.density, 0, 15, 8);
+  o.speed = clampInt(o.speed, 1, 8, 4);
+  const copies = clampInt(o.copies, 1, 999, 1);
+  const parts = [enc.encode(`${header(o).join('\r\n')}\r\n`)];
+  const t = o.textBitmap;
+  if (t) {
+    parts.push(enc.encode(`BITMAP ${t.x},${t.y},${t.widthBytes},${t.height},0,`), t.data, enc.encode('\r\n'));
+  }
+  const b = o.barcode;
+  if (b && b.value) {
+    const value = String(b.value).replace(/["\r\n]/g, '');
+    const narrow = clampInt(b.narrow, 1, 6, 3);
+    const height = clampInt(b.height, 20, 200, 80);
+    const human = b.human === false ? 0 : 1;
+    if (/^\d{13}$/.test(value)) {
+      // EAN-13: 12자리만 보내면 프린터가 체크디지트를 계산한다 (우리 번호는 항상 올바른 13자리)
+      const widthDots = 95 * narrow;
+      const x = b.x ?? Math.max(0, Math.round((mmToDots(o.widthMm) - widthDots) / 2));
+      parts.push(enc.encode(`BARCODE ${x},${b.y},"EAN13",${height},${human},0,${narrow},${narrow * 2},"${value.slice(0, 12)}"\r\n`));
+    } else {
+      parts.push(enc.encode(`BARCODE ${b.x ?? 16},${b.y},"128",${height},${human},0,${Math.min(narrow, 2)},${Math.min(narrow, 2) * 2},"${value}"\r\n`));
+    }
+  }
+  parts.push(enc.encode(`PRINT 1,${copies}\r\n`));
+  return concatBytes(parts);
+}
+
+/** 용지(갭/블랙마크) 자동 감지 명령. 처음 한 번, 또는 라벨 종류를 바꿨을 때 쓴다. */
+export function buildCalibrate(opts) {
+  const o = { ...opts };
+  const lines = header(o).filter((l) => l !== 'CLS');
+  lines.push(o.media === 'bline' ? 'BLINE' : 'GAPDETECT');
+  return enc.encode(`${lines.join('\r\n')}\r\n`);
+}

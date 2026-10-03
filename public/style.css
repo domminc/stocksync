@@ -538,3 +538,8 @@ td.sel input, th.selcol input { margin: 0; }
   .bulk-multi .inline-edit .qty-input { flex: 1 1 auto; }
   .bulk-multi .inline-edit button { flex: 1 1 auto; }
 }
+
+/* 사용 중지 상품: 목록에서 흐리게, 상태는 회색 칩 */
+.chip.stopped { background: var(--surface-2); color: var(--muted); border: 1px dashed var(--line-strong); }
+tr.inactive td { opacity: .55; }
+tr.inactive td.sel, tr.inactive td.sel * { opacity: 1; }

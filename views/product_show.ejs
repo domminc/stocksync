@@ -3,8 +3,7 @@
 <header class="page-head">
   <div>
     <h1><%= p.name %></h1>
-    <p class="lead"><%= p.option_name %> <span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span>
-      <% if (!p.active) { %><span class="chip">사용 중지</span><% } %></p>
+    <p class="lead"><%= p.option_name %> <% if (!p.active) { %><span class="chip stopped">사용 중지</span><% } else { %><span class="chip <%= st === 'untracked' ? '' : st %>"><%= STATUS_LABEL[st] %></span><% } %></p>
   </div>
   <div class="actions">
     <% if (can('product.write')) { %><a class="btn" href="/products/<%= p.id %>/edit">수정</a><% } %>

@@ -152,13 +152,13 @@ function buildWhere({ q = '', filter = '' }) {
     where.push("(p.barcode = ? OR p.sku_code = ? OR p.name LIKE ? ESCAPE '\\' OR p.option_name LIKE ? ESCAPE '\\')");
     params.push(normalizeBarcode(term), term, `%${escapeLike(term)}%`, `%${escapeLike(term)}%`);
   }
-  if (filter === 'out') where.push('p.tracked = 1 AND COALESCE(i.qty, 0) = 0');
-  else if (filter === 'low') where.push('p.tracked = 1 AND p.safety_stock > 0 AND COALESCE(i.qty, 0) > 0 AND COALESCE(i.qty, 0) <= p.safety_stock');
+  if (filter === 'out') where.push('p.active = 1 AND p.tracked = 1 AND COALESCE(i.qty, 0) = 0');
+  else if (filter === 'low') where.push('p.active = 1 AND p.tracked = 1 AND p.safety_stock > 0 AND COALESCE(i.qty, 0) > 0 AND COALESCE(i.qty, 0) <= p.safety_stock');
   else if (filter === 'hold') where.push('COALESCE(i.hold, 0) > 0');
   else if (filter === 'unprinted') where.push('p.label_printed_at IS NULL AND p.active = 1');
   else if (filter === 'inactive') where.push('p.active = 0');
   else if (filter === 'risk') {
-    where.push(`p.tracked = 1 AND (SELECT COALESCE(SUM(o.qty), 0) FROM order_lines o WHERE o.product_id = p.id AND o.status = 'pending') > COALESCE(i.qty, 0)`);
+    where.push(`p.active = 1 AND p.tracked = 1 AND (SELECT COALESCE(SUM(o.qty), 0) FROM order_lines o WHERE o.product_id = p.id AND o.status = 'pending') > COALESCE(i.qty, 0)`);
   }
   return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
